@@ -1,0 +1,38 @@
+# Runs the same checks you run locally (see README) on every push and pull request.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# This workflow only reads the code, so it gets no write access to the repository.
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python checks
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to exact versions so CI can't change underneath us.
+      - uses: actions/checkout@v7.0.1
+
+      # Installs uv; uv then installs the Python version in .python-version.
+      - uses: astral-sh/setup-uv@v10.2.0
+
+      # --locked fails if uv.lock is out of date with pyproject.toml, instead of silently
+      # resolving different versions than the ones tested locally.
+      - name: Install dependencies exactly as locked
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Type-check
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Project data and outputs. Downloaded and derived data never goes into git: NSE data is not
+# ours to redistribute, and it is large. Hand-maintained, sourced files live in reference/,
+# which IS tracked. The leading "/" anchors each rule to the repo root, so a code folder that
+# happens to share a name is not ignored by accident.
+/data/
+/runs/
+/reports/
+
+# Frontend (from M6)
+node_modules/
+frontend/dist/
+
+# Local environment, OS and editor files
+.env
+.DS_Store
+.idea/
+.vscode/
