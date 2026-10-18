@@ -12,12 +12,14 @@ permissions:
 jobs:
   python:
     name: Python checks
-    runs-on: ubuntu-latest
+    # A fixed image, so a GitHub-side OS upgrade cannot change CI silently.
+    runs-on: ubuntu-24.04
     steps:
       # Actions are pinned to exact versions so CI can't change underneath us.
       - uses: actions/checkout@v7.0.1
 
-      # Installs uv; uv then installs the Python version in .python-version.
+      # Installs uv; uv then installs the exact Python in .python-version (3.12.15), the same
+      # build used locally, instead of whatever Python the runner image happens to ship.
       - uses: astral-sh/setup-uv@v10.2.0
 
       # --locked fails if uv.lock is out of date with pyproject.toml, instead of silently

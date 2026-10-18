@@ -92,3 +92,7 @@ Vite · Tailwind CSS · Recharts · TanStack Table · pytest · Vitest · ruff �
 Docker
 
 The full project spec is in [`CLAUDE.md`](CLAUDE.md).
+
+## License
+
+Code: [MIT](LICENSE). NSE data is not included and is not covered by this license.

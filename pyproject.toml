@@ -3,6 +3,8 @@ name = "nifty-backtest"
 version = "0.1.0"
 description = "Backtests NIFTY index option strategies on NSE end-of-day data, with an API and dashboard."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Shivaansh Aggarwal", email = "280832830+Shivaansh29@users.noreply.github.com" }
 ]
