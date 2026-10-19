@@ -9,7 +9,12 @@ authors = [
     { name = "Shivaansh Aggarwal", email = "280832830+Shivaansh29@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "duckdb>=1.5.6",
+    "httpx>=0.28.1",
+    "pandas>=3.0.6",
+    "pyarrow>=26.0.0",
+]
 
 # `uv run nifty-backtest ...` calls main() in src/nifty_backtest/cli.py.
 [project.scripts]
@@ -23,6 +28,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "mypy>=2.4.0",
+    "pandas-stubs>=3.0.5.260914",
     "pytest>=9.1.1",
     "ruff>=0.16.10",
 ]
@@ -53,5 +59,10 @@ testpaths = ["tests"]
 # -ra: summarise skipped and failed tests at the end of the run.
 # importlib mode: tests import the installed package, never the folder they sit in.
 addopts = ["-ra", "--import-mode=importlib"]
+# importlib mode does not put the repo root on the import path; this does, so tests can
+# share tests/helpers.py.
+pythonpath = ["."]
+# Tests marked realdata read the local NSE cache in data/ and skip when it is absent.
+markers = ["realdata: needs the local NSE data cache in data/ (skipped in CI)"]
 # Fail on unknown config keys, unregistered markers, and xfail tests that unexpectedly pass.
 strict = true

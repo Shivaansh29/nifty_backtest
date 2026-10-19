@@ -1,13 +1,54 @@
-"""Command-line interface, run as `uv run nifty-backtest ...`.
+"""Command-line interface, run as `uv run nifty-backtest <command> ...`.
 
-M0 only wires up the entry point and `--version`. Later milestones add subcommands here,
-for example downloading NSE data (M1) and running a backtest (M3).
+Each milestone adds subcommands here. The CLI only parses arguments and calls into the
+modules that do the work, so all logic stays testable without going through the command line.
 """
 
 import argparse
+import logging
 from collections.abc import Sequence
+from dataclasses import replace
+from datetime import date
 
 from nifty_backtest import __version__
+from nifty_backtest.marketdata.config import DataConfig
+
+
+def _download(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.marketdata.download import download_range, make_client
+
+    with make_client(cfg) as client:
+        summary = download_range(cfg, client, today=date.today())
+    print(
+        f"downloaded {summary.downloaded}, no file (404) {summary.not_found}, "
+        f"errors {summary.errors}, already done {summary.skipped}"
+    )
+    return 1 if summary.errors else 0
+
+
+def _build(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.marketdata.store import build
+
+    written, current = build(cfg, today=date.today())
+    print(
+        f"stored {written} new trading days ({current} already up to date) in {cfg.processed_dir}"
+    )
+    return 0
+
+
+def _report(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.marketdata.quality import write_report
+
+    path = write_report(cfg, today=date.today())
+    print(f"data-quality report written to {path}")
+    return 0
+
+
+def _sql(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.marketdata.store import query
+
+    print(query(cfg, args.statement).to_string(index=False))
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -20,8 +61,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Backtest NIFTY index option strategies on NSE end-of-day data.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.parse_args(argv)
+    commands = parser.add_subparsers(dest="command")
 
-    # There are no subcommands yet (they arrive from M1), so show what the tool is.
-    parser.print_help()
-    return 0
+    download = commands.add_parser("download", help="download NSE F&O bhavcopies into data/raw")
+    download.add_argument("--start", type=date.fromisoformat, help="first date, YYYY-MM-DD")
+    download.add_argument("--end", type=date.fromisoformat, help="last date, YYYY-MM-DD")
+    commands.add_parser("build", help="normalise downloaded files into Parquet (data/processed)")
+    commands.add_parser("report", help="write the data-quality report to reports/")
+    sql = commands.add_parser("sql", help="run a DuckDB SQL query against the `options` view")
+    sql.add_argument("statement", help='e.g. "SELECT count(*) FROM options"')
+
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # our own log already names each file
+    cfg = DataConfig()
+    if getattr(args, "start", None) is not None:
+        cfg = replace(cfg, start=args.start)
+    if getattr(args, "end", None) is not None:
+        cfg = replace(cfg, end=args.end)
+
+    handlers = {"download": _download, "build": _build, "report": _report, "sql": _sql}
+    return handlers[args.command](args, cfg)

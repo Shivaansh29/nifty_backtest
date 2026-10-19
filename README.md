@@ -6,8 +6,9 @@ Backtests NIFTY 50 index option strategies on real NSE end-of-day data and shows
 an interactive web dashboard. Version 1 tests one strategy, a weekly short straddle, from
 October 2021 to the latest trading day.
 
-> **Status: M0 (repository setup) complete.** There are no backtest results yet. Every number
-> that appears here later will come from a saved, reproducible run.
+> **Status: M1 (data ingestion) complete.** Five years of NSE F&O bhavcopies are downloaded,
+> normalised and queryable. There are no backtest results yet: every number that appears here
+> later will come from a saved, reproducible run.
 
 ## Principles
 
@@ -26,6 +27,16 @@ uv sync                          # create .venv with the exact versions in uv.lo
 uv run nifty-backtest --version  # the command-line tool
 ```
 
+Get the data (runs on your machine only; about 1.5 GB and roughly 1.5 hours the first time,
+because requests to NSE are spaced out politely; re-runs only fetch what is missing):
+
+```bash
+uv run nifty-backtest download   # NSE files -> data/raw (resumable)
+uv run nifty-backtest build      # normalise both formats -> data/processed (Parquet)
+uv run nifty-backtest report     # data-quality report -> reports/data_quality.md
+uv run nifty-backtest sql "SELECT count(*) FROM options"   # query with DuckDB
+```
+
 Run the same checks as CI:
 
 ```bash
@@ -37,7 +48,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 | # | Milestone | Status |
 |---|---|---|
 | M0 | Repo setup: uv, ruff, mypy, pytest, CI | done |
-| M1 | Data ingestion: NSE bhavcopy (both formats) to Parquet + DuckDB, data-quality report | planned |
+| M1 | Data ingestion: NSE bhavcopy (both formats) to Parquet + DuckDB, data-quality report | done |
 | M2 | Reference data: expiry calendar, special sessions, lot sizes, index, TRI, VIX, settlement | planned |
 | M3 | Engine, short straddle, full cost model, per-trade context | planned |
 | M4 | Metrics and reports | planned |
