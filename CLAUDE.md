@@ -71,13 +71,18 @@ Do not add frameworks or major dependencies beyond this list without asking the 
 **Known traps — handle from day one, never hardcode:**
 
 1. **Expiry dates:** derive from the contract rows. NIFTY weeklies moved Thursday → Tuesday
-   from 1 Sep 2025, and holidays shift individual expiries (e.g. to Wednesday).
-2. **Lot size:** changed several times in this window (50 → 25 → 75 → 65). It belongs to the
-   contract (expiry), not the trade date: changes roll over expiry by expiry, so contracts trading
-   on the same day can have different lot sizes. Read it per contract where the file provides it.
-   For legacy files (Oct 2021 – Jul 2024, which includes the 2024 50 → 25 change) use a dated
-   table in `reference/` with exact effective dates from the NSE circulars, cited per row.
-   Cross-check the table against UDiFF data where they overlap.
+   from 1 Sep 2025, and holidays shift individual expiries (e.g. to Wednesday). NSE also
+   re-dates existing contracts (holiday shifts, the Tuesday switch), so a printed expiry date is
+   not proof: an expiry counts only if its contracts traded on that date. The calendar maps
+   each stated expiry to the actual one (e.g. stated Thu 29 Jun 2023, actual Wed 28 Jun 2023).
+2. **Lot size:** changed several times in this window (50 → 25 → 75 → 65). It belongs to a
+   contract *on a trade date*: changes roll over expiry by expiry, and NSE has also changed the
+   lot size of existing contracts mid-life (e.g. 27 Dec 2024), so contracts trading on the same
+   day can differ (24–30 Jan 2025: nearest contract 25, neighbouring weeks 75). Read it per row
+   where the file provides it. For legacy files (Oct 2021 – Jul 2024, which includes the 2024
+   50 → 25 change) use UDiFF rows on overlap days and, before that, a dated table in
+   `reference/` keyed by trade-date range, with sources from the NSE circulars cited per row.
+   If a trade's lot size cannot be determined, skip that week and log why.
 3. **Expiry-day settle column:** on expiry day NSE puts the *index final settlement level* in the
    settle column of expiring options, not the option's own price. Option value at expiry =
    intrinsic value computed from that level.
@@ -100,8 +105,9 @@ expiries by weekday per year, lot sizes by period, rows per day, zero-volume row
 - **Instrument:** nearest weekly NIFTY expiry = the first expiry strictly after the entry date
   (monthly expiries included).
 - **Entry:** sell 1 ATM call + 1 ATM put at the close, `entry_days_before_expiry` trading days
-  before expiry (default 3). ATM = strike nearest to the index close (exact midpoint: the lower
-  strike). If two expiries are closer together than that, the entry day can be the previous
+  before the *actual* expiry (default 3; holiday re-dating does not change this). Short special
+  sessions (Muhurat) are not counted as trading days for this. ATM = strike nearest to the index
+  close (exact midpoint: the lower strike). If two expiries are closer together than that, the entry day can be the previous
   expiry day: the old position settles and the new one opens at the same close.
 - **Skipped weeks:** skip a week, and log why, if either ATM leg is missing or has zero volume
   at entry, or the settlement level is missing.
@@ -199,3 +205,7 @@ then BANKNIFTY.
   P&L in ₹, points per unit and % of premium; run data manifest; NIFTY 50 TRI benchmark and no
   unsourced margin figure; special-session and format-overlap traps; entry, expiry and
   skipped-week rules; return-on-notional Sharpe; synthetic CI fixtures; extra approved packages.
+- 2026-10-19, after M1, approved by the owner: lot size is per contract per trade date (NSE
+  changed existing contracts mid-life); expiries can be re-dated, so the calendar maps stated to
+  actual expiries and entry stays 3 trading days before the actual expiry; skip a week only if
+  its lot size cannot be determined.

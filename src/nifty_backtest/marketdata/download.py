@@ -101,37 +101,66 @@ def needs_download(
     return (today - day).days <= cfg.recheck_recent_days
 
 
+def request_with_retries(
+    client: httpx.Client,
+    cfg: DataConfig,
+    sleep: Callable[[float], None],
+    method: str,
+    link: str,
+    **kwargs: object,
+) -> httpx.Response | None:
+    """Send one request, retrying network errors and temporary server trouble (5xx, 429).
+
+    Returns the final response (any status) or None if the network never answered.
+    Other statuses (200, 404, 403, ...) are returned at once: retrying would not change them.
+    """
+    response: httpx.Response | None = None
+    for attempt in range(1, cfg.max_attempts + 1):
+        try:
+            response = client.request(method, link, **kwargs)  # type: ignore[arg-type]
+        except httpx.HTTPError as exc:
+            log.warning("attempt %d/%d failed for %s: %s", attempt, cfg.max_attempts, link, exc)
+            response = None
+        else:
+            if response.status_code < 500 and response.status_code != 429:
+                return response
+            log.warning(
+                "attempt %d/%d: HTTP %d for %s",
+                attempt,
+                cfg.max_attempts,
+                response.status_code,
+                link,
+            )
+        if attempt < cfg.max_attempts:
+            sleep(cfg.request_delay_seconds * 2**attempt)  # back off: 2x, 4x, ... the delay
+    return response
+
+
+def save_atomically(dest: Path, content: bytes) -> None:
+    """Write `<name>.part` first and rename it only once complete, so an interrupted run
+    never leaves a half-written file that looks finished."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    part = dest.with_name(dest.name + ".part")
+    part.write_bytes(content)
+    os.replace(part, dest)
+
+
 def fetch(
     client: httpx.Client, link: str, dest: Path, cfg: DataConfig, sleep: Callable[[float], None]
 ) -> Outcome:
-    """GET one file, retrying temporary failures, and save it atomically.
-
-    The file is first written as `<name>.part` and only renamed once complete, so an
-    interrupted run never leaves a half-written file that looks finished.
-    """
-    for attempt in range(1, cfg.max_attempts + 1):
-        try:
-            response = client.get(link)
-        except httpx.HTTPError as exc:
-            log.warning("attempt %d/%d failed for %s: %s", attempt, cfg.max_attempts, link, exc)
-            status: int | None = None
-        else:
-            status = response.status_code
-            if status == 404:
-                return Outcome("not_found", 404, 0)
-            if status == 200:
-                if not response.content.startswith(ZIP_MAGIC):
-                    log.warning("not a zip file: %s", link)
-                    return Outcome("error", 200, len(response.content))
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                part = dest.with_name(dest.name + ".part")
-                part.write_bytes(response.content)
-                os.replace(part, dest)
-                return Outcome("ok", 200, len(response.content))
-            log.warning("attempt %d/%d: HTTP %d for %s", attempt, cfg.max_attempts, status, link)
-        if attempt < cfg.max_attempts:
-            sleep(cfg.request_delay_seconds * 2**attempt)  # back off: 2x, 4x, ... the delay
-    return Outcome("error", status, 0)
+    """GET one bhavcopy zip, retrying temporary failures, and save it atomically."""
+    response = request_with_retries(client, cfg, sleep, "GET", link)
+    if response is None:
+        return Outcome("error", None, 0)
+    if response.status_code == 404:
+        return Outcome("not_found", 404, 0)
+    if response.status_code != 200:
+        return Outcome("error", response.status_code, 0)
+    if not response.content.startswith(ZIP_MAGIC):
+        log.warning("not a zip file: %s", link)
+        return Outcome("error", 200, len(response.content))
+    save_atomically(dest, response.content)
+    return Outcome("ok", 200, len(response.content))
 
 
 def calendar_days(start: date, end: date) -> Iterator[date]:

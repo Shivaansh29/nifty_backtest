@@ -1,9 +1,9 @@
 """Data-quality report (spec §4): what was loaded, what is missing, and why.
 
-Everything here is counted from the download log, the raw files and the stored Parquet
-data. Nothing is estimated. Where M1 cannot yet tell two cases apart (e.g. a weekday with
-no session could be a holiday or an NSE gap), the report says so instead of guessing; M2
-checks those dates against NSE's official holiday list.
+Everything here is counted from the download log, the raw files, the stored Parquet data
+and NSE's official lists. Nothing is estimated: where two cases can't be told apart, the
+report says so instead of guessing. M1 sections cover the option data; M2 sections check the
+calendar, special sessions, lot sizes, index data and expiry settlement.
 """
 
 from dataclasses import dataclass
@@ -107,8 +107,7 @@ def build_report(cfg: DataConfig, today: date) -> str:
         "",
         "## Weekdays with no session",
         "",
-        "Most of these should be exchange holidays. M1 can't tell a holiday from a missing file,",
-        "so M2 checks each date against NSE's official holiday list.",
+        "Each one is checked against NSE's official F&O holiday list in the M2 section below.",
         "",
     ]
     by_year: dict[int, list[date]] = {}
@@ -185,7 +184,8 @@ def build_report(cfg: DataConfig, today: date) -> str:
                 WHERE expiry >= trade_date GROUP BY trade_date
             ),
             lots AS (
-                SELECT n.trade_date, any_value(o.lot_size) AS lot
+                SELECT n.trade_date, any_value(o.lot_size) AS lot,
+                       string_agg(DISTINCT o.lot_size_source, ', ') AS source
                 FROM nearest n JOIN options o USING (trade_date, expiry)
                 WHERE o.lot_size IS NOT NULL GROUP BY n.trade_date
             ),
@@ -199,7 +199,8 @@ def build_report(cfg: DataConfig, today: date) -> str:
             )
             SELECT any_value(lot) AS nearest_expiry_lot,
                    min(trade_date)::VARCHAR AS from_trade_date,
-                   max(trade_date)::VARCHAR AS to_trade_date, count(*) AS trading_days
+                   max(trade_date)::VARCHAR AS to_trade_date, count(*) AS trading_days,
+                   string_agg(DISTINCT source, ', ') AS lot_size_source
             FROM periods GROUP BY period ORDER BY from_trade_date
             """
         ).df()
@@ -270,8 +271,9 @@ def build_report(cfg: DataConfig, today: date) -> str:
         "",
         "## Lot sizes (trap 2)",
         "",
-        "From UDiFF's lot-size column, which only starts with the stored UDiFF data. Legacy",
-        "files have no lot size; the sourced legacy table arrives in M2.",
+        "Each row's lot size records where it came from (`lot_size_source`): `udiff` (the file",
+        "itself), `udiff_same_day` (legacy day inside the 2024 overlap: that day's UDiFF file) or",
+        "`reference_table` (reference/lot_sizes_legacy.csv, sourced from NSE/FAOP/47854).",
         "",
         "Lot size of the nearest-expiry contract, by trade date:",
         "",
@@ -326,6 +328,7 @@ def build_report(cfg: DataConfig, today: date) -> str:
                 )
     else:
         out.append("No days with both formats downloaded.")
+    out += m2_sections(cfg, today, stored, weekday_no_session)
     return "\n".join(out) + "\n"
 
 
@@ -334,3 +337,168 @@ def write_report(cfg: DataConfig, today: date, reports_dir: Path = Path("reports
     path = reports_dir / "data_quality.md"
     path.write_text(build_report(cfg, today), encoding="utf-8")
     return path
+
+
+def m2_sections(
+    cfg: DataConfig, today: date, stored: list[date], weekday_no_session: list[date]
+) -> list[str]:
+    """Calendar, special sessions, index data and settlement checks (spec §4, M2)."""
+    from nifty_backtest.marketdata.holidays import fo_holidays
+    from nifty_backtest.marketdata.indices import index_path
+    from nifty_backtest.marketdata.trading_calendar import expiry_calendar, special_sessions
+
+    out = ["", "# M2: reference data checks", ""]
+    if not stored:
+        return [*out, "No stored data yet."]
+    last = stored[-1]
+
+    # Holidays: every weekday without a session should be an official F&O holiday, and
+    # every official weekday holiday with a session should be a listed special session.
+    holidays = fo_holidays(cfg, today)
+    sessions = special_sessions(cfg)
+    stored_set = set(stored)
+    official_weekdays = {d for d in holidays if d.weekday() < 5 and cfg.start <= d <= last}
+    unexplained_404 = [d for d in weekday_no_session if d <= last and d not in holidays]
+    holiday_with_session = sorted(d for d in official_weekdays if d in stored_set)
+    out += [
+        "## Holidays (trap 5)",
+        "",
+        f"Official NSE F&O holiday lists cached for {len({d.year for d in holidays})} years "
+        "(NSE holiday API).",
+        f"- Weekdays with no session that are NOT official holidays (possible data gaps): "
+        f"**{len(unexplained_404)}** {_dates(unexplained_404) if unexplained_404 else ''}",
+        "- Official weekday holidays that nevertheless had a session: "
+        + ", ".join(
+            f"{d} ({holidays[d]}; special session: {'yes' if d in sessions else 'NOT LISTED'})"
+            for d in holiday_with_session
+        )
+        if holiday_with_session
+        else "- Official weekday holidays that nevertheless had a session: none",
+        "",
+    ]
+
+    # Special sessions: weekend sessions must all be listed; listed sessions must exist.
+    weekend = [d for d in stored if d.weekday() >= 5]
+    unlisted = [d for d in [*weekend, *holiday_with_session] if d not in sessions]
+    listed_missing = [d for d in sessions if cfg.start <= d <= last and d not in stored_set]
+    with connect(cfg) as con:
+        volume = con.execute(
+            """
+            WITH d AS (SELECT trade_date, sum(contracts)::BIGINT AS contracts
+                       FROM options GROUP BY trade_date)
+            SELECT trade_date, contracts,
+                   median(contracts) OVER (ORDER BY trade_date
+                       ROWS BETWEEN 10 PRECEDING AND 10 FOLLOWING) AS nearby_median
+            FROM d
+            """
+        ).df()
+        calendar = expiry_calendar(con, cfg, entry_days_before=3)
+        settlement = (
+            con.execute(
+                f"""
+            WITH s AS (SELECT expiry, count(DISTINCT settle_price) AS n_values,
+                              any_value(settle_price) AS level
+                       FROM options WHERE trade_date = expiry GROUP BY expiry)
+            SELECT count(*) AS expiries,
+                   count(*) FILTER (WHERE n_values = 1) AS one_settle_value,
+                   count(*) FILTER (WHERE n_values = 1
+                                    AND abs(level - i.nifty_close) < 0.005) AS equals_nifty_close,
+                   round(max(abs(level - i.nifty_close)), 4) AS max_difference
+            FROM s LEFT JOIN read_parquet('{index_path(cfg).as_posix()}') i ON i.date = s.expiry
+            """
+            ).df()
+            if index_path(cfg).exists()
+            else pd.DataFrame()
+        )
+        coverage = (
+            con.execute(
+                f"""
+            SELECT count(*) AS trading_days,
+                   count(*) FILTER (WHERE i.nifty_close IS NULL) AS missing_nifty,
+                   count(*) FILTER (WHERE i.vix_close IS NULL) AS missing_vix,
+                   count(*) FILTER (WHERE i.nifty_tri IS NULL) AS missing_tri,
+                   count(*) FILTER (WHERE i.nifty_vix_source = 'nse_archive') AS from_archive
+            FROM (SELECT DISTINCT trade_date FROM options) d
+            LEFT JOIN read_parquet('{index_path(cfg).as_posix()}') i ON i.date = d.trade_date
+            """
+            ).df()
+            if index_path(cfg).exists()
+            else pd.DataFrame()
+        )
+        underlying = (
+            con.execute(
+                f"""
+            WITH u AS (SELECT trade_date, max(underlying_price) AS price FROM options
+                       WHERE underlying_price IS NOT NULL AND NOT isnan(underlying_price)
+                       GROUP BY trade_date)
+            SELECT count(*) AS udiff_days,
+                   count(*) FILTER (WHERE abs(u.price - i.nifty_close) < 0.005) AS equal,
+                   round(max(abs(u.price - i.nifty_close)), 4) AS max_difference
+            FROM u JOIN read_parquet('{index_path(cfg).as_posix()}') i ON i.date = u.trade_date
+            """
+            ).df()
+            if index_path(cfg).exists()
+            else pd.DataFrame()
+        )
+        missing_lots = con.execute("SELECT count(*) FROM options WHERE lot_size IS NULL").fetchone()
+
+    # DuckDB hands dates to pandas as timestamps; convert back to plain dates for lookups.
+    ratio_by_day = {
+        ts.date(): contracts / median for ts, contracts, median in volume.itertuples(index=False)
+    }
+    rows = []
+    for day in sorted(d for d in sessions if d in stored_set):
+        s = sessions[day]
+        ratio = ratio_by_day[day]
+        rows.append([day, s.kind, "yes" if s.short_session else "no", f"{ratio:.1%}"])
+    out += [
+        "## Special sessions (trap 6)",
+        "",
+        "Listed in reference/special_sessions.csv, each with its NSE circular. Short sessions are",
+        "never entry days and don't count toward 'N trading days before expiry'. As a sanity",
+        "check, NIFTY option volume is shown relative to the median of the surrounding 21 days:",
+        "",
+        _table(pd.DataFrame(rows, columns=["date", "kind", "short", "volume_vs_nearby_median"])),
+        "",
+        f"- Weekend/holiday sessions in the data but not listed: **{len(unlisted)}** "
+        f"{_dates(unlisted) if unlisted else ''}",
+        f"- Listed sessions missing from the data: **{len(listed_missing)}** "
+        f"{_dates(listed_missing) if listed_missing else ''}",
+        "",
+        "## Expiry calendar (trap 1)",
+        "",
+        "One row per real expiry (contracts traded on that date); entry = 3 full trading days",
+        "earlier. Full table: `nifty-backtest expiries` writes reports/expiry_calendar.csv.",
+        "",
+        _table(calendar["status"].value_counts().rename_axis("status").reset_index()),
+        "",
+        "Entries where the nearest contracts still carried their old (re-dated) expiry date:",
+        "",
+        _table(
+            calendar.loc[
+                calendar["relabelled"].fillna(False).astype(bool),
+                ["expiry", "entry_date", "stated_expiry_on_entry", "status"],
+            ]
+        )
+        if calendar["relabelled"].fillna(False).astype(bool).any()
+        else "none",
+        "",
+        f"Option rows with no lot size (their weeks would be skipped): "
+        f"**{missing_lots[0] if missing_lots else 'unknown'}**",
+        "",
+        "## Index data: NIFTY 50, India VIX, NIFTY 50 TRI",
+        "",
+        _table(coverage) if not coverage.empty else "No index data stored yet.",
+        "",
+        "Independent check: UDiFF's underlying price vs the index API's NIFTY close:",
+        "",
+        _table(underlying) if not underlying.empty else "No index data stored yet.",
+        "",
+        "## Expiry settlement (trap 3)",
+        "",
+        "On each real expiry day, every expiring contract must carry the same settle price (the",
+        "final settlement level), and it should equal NSE's official NIFTY close that day.",
+        "",
+        _table(settlement) if not settlement.empty else "No index data stored yet.",
+    ]
+    return out

@@ -14,6 +14,8 @@ class DataConfig:
     """Where data lives, which dates to fetch, and how politely to fetch them."""
 
     data_dir: Path = Path("data")
+    # Hand-maintained, sourced reference files (tracked in git).
+    reference_dir: Path = Path("reference")
 
     # Backtest window (spec §2). `end=None` means "up to today".
     start: date = date(2021, 10, 1)

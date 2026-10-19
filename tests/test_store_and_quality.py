@@ -4,15 +4,12 @@ import csv
 from dataclasses import replace
 from datetime import date
 
-import pandas as pd
-
-from nifty_backtest.marketdata.bhavcopy import COLUMNS
 from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.marketdata.download import log_path
 from nifty_backtest.marketdata.quality import build_report, compare_formats
 from nifty_backtest.marketdata.sources import Format
 from nifty_backtest.marketdata.store import build, processed_path, query
-from tests.helpers import FIXTURE_DAY, install_fixture
+from tests.helpers import FIXTURE_DAY, install_fixture, option_row, write_processed
 
 
 def write_log(cfg: DataConfig, rows: list[tuple[date, Format, str]]) -> None:
@@ -71,16 +68,6 @@ def test_report_sections(cfg: DataConfig) -> None:
     assert "| 2024 | 3 | 1 | 33.3 |" in report
 
 
-def _row(trade_day: date, expiry: date, lot: int) -> dict[str, object]:
-    return {
-        "trade_date": trade_day, "underlying": "NIFTY", "expiry": expiry, "strike": 22000.0,
-        "option_type": "CE", "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0,
-        "settle_price": 1.0, "contracts": 1, "turnover_rs": 1.0, "open_interest": 1,
-        "change_in_oi": 0, "lot_size": lot, "underlying_price": 22000.0,
-        "zero_volume": False, "source_format": "udiff",
-    }  # fmt: skip
-
-
 def test_report_counts_only_expiries_that_happened_and_mid_life_lot_changes(
     cfg: DataConfig,
 ) -> None:
@@ -89,12 +76,9 @@ def test_report_counts_only_expiries_that_happened_and_mid_life_lot_changes(
     # Tue 2025-08-05 but is last seen on day 1: it never reached that date.
     day1, day2 = date(2025, 8, 4), date(2025, 8, 7)
     a, b = date(2025, 8, 7), date(2025, 8, 5)
-    frames = {day1: [_row(day1, a, 75), _row(day1, b, 75)], day2: [_row(day2, a, 65)]}
-    for day, rows in frames.items():
-        path = processed_path(cfg, day)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        frame = pd.DataFrame(rows, columns=COLUMNS).astype({"lot_size": "Int64"})
-        frame.to_parquet(path, index=False)
+    write_processed(
+        cfg, [option_row(day1, a, 75), option_row(day1, b, 75), option_row(day2, a, 65)]
+    )
     cfg = replace(cfg, start=day1, end=day2)
     write_log(cfg, [(day1, Format.UDIFF, "ok"), (day2, Format.UDIFF, "ok")])
 
