@@ -87,6 +87,38 @@ def _sql(args: argparse.Namespace, cfg: DataConfig) -> int:
     return 0
 
 
+def _backtest(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.costs.model import CostConfig
+    from nifty_backtest.engine.backtest import RunConfig, run_backtest
+    from nifty_backtest.engine.runs import save_run
+    from nifty_backtest.strategies.short_straddle import ShortStraddle
+
+    run_cfg = RunConfig(
+        data=cfg,
+        costs=CostConfig(
+            brokerage_per_order_rs=args.brokerage, slippage_points_per_leg=args.slippage
+        ),
+        capital_rs=args.capital,
+    )
+    strategy = ShortStraddle(entry_days_before_expiry=args.entry_days_before, lots=args.lots)
+    result = run_backtest(run_cfg, strategy)
+    folder = save_run(result, run_cfg, strategy)
+    t = result.trades
+    print(f"trades: {len(t)}  skipped: {len(result.skipped)}")
+    if not result.skipped.empty:
+        print(result.skipped["reason"].value_counts().to_string())
+    if not t.empty:
+        gross, slip = t["pnl_rs_gross"].sum(), t["slippage_rs"].sum()
+        charges, net = t["charges_rs"].sum(), t["pnl_rs_net"].sum()
+        print(
+            f"P&L gross Rs {gross:,.0f} | slippage Rs {slip:,.0f} | charges Rs {charges:,.0f}"
+            f" | net Rs {net:,.0f}"
+        )
+        print(f"net P&L, index points per unit, summed: {t['pnl_points_net'].sum():,.1f}")
+    print(f"run saved to {folder}  (metrics arrive in M4)")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return the process exit code (0 = success).
 
@@ -121,6 +153,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="full trading days before expiry (default 3)",
     )
     commands.add_parser("report", help="write the data-quality report to reports/")
+    bt = commands.add_parser("backtest", help="run the short straddle and save the run to runs/")
+    bt.add_argument("--entry-days-before", type=int, default=3, help="full sessions before expiry")
+    bt.add_argument("--lots", type=int, default=1, help="lots per leg (default 1)")
+    bt.add_argument(
+        "--brokerage", type=float, default=20.0, help="Rs per executed order (assumption)"
+    )
+    bt.add_argument(
+        "--slippage", type=float, default=0.5, help="index points per unit per leg (assumption)"
+    )
+    bt.add_argument("--capital", type=float, default=500_000.0, help="starting capital in Rs")
     sql = commands.add_parser("sql", help="run a DuckDB SQL query against the `options` view")
     sql.add_argument("statement", help='e.g. "SELECT count(*) FROM options"')
 
@@ -142,6 +184,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "download-index": _download_index,
         "build": _build,
         "expiries": _expiries,
+        "backtest": _backtest,
         "report": _report,
         "sql": _sql,
     }

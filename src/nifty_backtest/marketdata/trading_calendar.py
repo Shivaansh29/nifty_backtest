@@ -77,7 +77,11 @@ CALENDAR_COLUMNS = [
 
 
 def expiry_calendar(
-    con: duckdb.DuckDBPyConnection, cfg: DataConfig, entry_days_before: int
+    con: duckdb.DuckDBPyConnection,
+    cfg: DataConfig,
+    entry_days_before: int,
+    expiries_from: date | None = None,
+    expiries_to: date | None = None,
 ) -> pd.DataFrame:
     """One row per real expiry: when to enter, and which contracts to trade that day.
 
@@ -99,6 +103,8 @@ def expiry_calendar(
 
     rows = []
     for expiry in real:
+        if (expiries_from and expiry < expiries_from) or (expiries_to and expiry > expiries_to):
+            continue  # outside the requested range; skip the per-expiry queries
         earlier = [d for d in full_days if d < expiry]
         record: dict[str, object] = {"expiry": expiry, "expiry_weekday": f"{expiry:%a}"}
         if len(earlier) < entry_days_before:

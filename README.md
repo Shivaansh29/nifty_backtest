@@ -6,10 +6,11 @@ Backtests NIFTY 50 index option strategies on real NSE end-of-day data and shows
 an interactive web dashboard. Version 1 tests one strategy, a weekly short straddle, from
 October 2021 to the latest trading day.
 
-> **Status: M2 (reference data) complete.** Five years of NSE F&O bhavcopies are downloaded,
-> normalised and queryable, with a verified expiry calendar, lot sizes, special sessions,
-> NIFTY 50 / India VIX / TRI and expiry settlement levels. There are no backtest results yet: every number that appears here
-> later will come from a saved, reproducible run.
+> **Status: M3 (engine) complete.** The short straddle runs over five years of NSE data
+> (263 weekly trades), with a dated, sourced cost model and a full trade log. Three trades are
+> verified by hand against NSE's raw files. Performance metrics arrive in M4, so no
+> headline results are quoted yet. Every number that appears here later will come from a saved,
+> reproducible run.
 
 ## Principles
 
@@ -37,6 +38,7 @@ uv run nifty-backtest download-index   # NIFTY 50, India VIX, NIFTY 50 TRI, NSE 
 uv run nifty-backtest build            # normalise -> data/processed (Parquet)
 uv run nifty-backtest expiries         # expiry calendar -> reports/expiry_calendar.csv
 uv run nifty-backtest report           # data-quality report -> reports/data_quality.md
+uv run nifty-backtest backtest         # short straddle -> runs/<run_id>/ (trade log, marks, equity)
 uv run nifty-backtest sql "SELECT count(*) FROM options"   # query with DuckDB
 ```
 
@@ -53,7 +55,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 | M0 | Repo setup: uv, ruff, mypy, pytest, CI | done |
 | M1 | Data ingestion: NSE bhavcopy (both formats) to Parquet + DuckDB, data-quality report | done |
 | M2 | Reference data: expiry calendar, special sessions, lot sizes, index, TRI, VIX, settlement | done |
-| M3 | Engine, short straddle, full cost model, per-trade context | planned |
+| M3 | Engine, short straddle, full cost model, per-trade context | done |
 | M4 | Metrics and reports | planned |
 | M5 | FastAPI backend | planned |
 | M6 | React dashboard | planned |
@@ -72,8 +74,12 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
   one-lot short straddle only ties up part of that as margin, so the return on the margin
   actually used would be higher.
 - **Benchmark.** NIFTY 50 Total Return Index (dividends reinvested), from NSE.
-- **Costs.** Brokerage, STT, exchange charges, GST, stamp duty, SEBI fees and slippage. Statutory
-  rates come from a dated table that cites NSE/SEBI circulars and the Finance Act.
+- **Costs.** Statutory and exchange charges come from a dated table in
+  [`reference/cost_rates.csv`](reference/cost_rates.csv), every row citing an NSE circular,
+  SEBI regulation, Finance Act or GST notification. That covers STT (changed on 1 Apr 2023,
+  1 Oct 2024 and 1 Apr 2026), NSE transaction charges, IPFT, SEBI fees, stamp duty and GST.
+  Brokerage (₹20 per order) and slippage (0.5 index points per leg) are assumptions: both are
+  configurable, and every run records the values it used.
 
 ## Data
 

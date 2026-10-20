@@ -29,15 +29,19 @@ def option_row(
     *,
     strike: float = 22000.0,
     option_type: str = "CE",
-    settle: float = 1.0,
+    settle: float | None = None,
+    close: float = 1.0,
+    contracts: int = 1,
 ) -> dict[str, object]:
-    """One normalised option row with harmless default prices (for hand-built Parquet)."""
+    """One normalised option row (for hand-built Parquet). Settle defaults to the close,
+    as NSE prints it on non-expiry days."""
     return {
         "trade_date": trade_day, "underlying": "NIFTY", "expiry": expiry, "strike": strike,
-        "option_type": option_type, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0,
-        "settle_price": settle, "contracts": 1, "turnover_rs": 1.0, "open_interest": 1,
-        "change_in_oi": 0, "lot_size": lot, "underlying_price": 22000.0,
-        "zero_volume": False, "source_format": "udiff", "lot_size_source": "udiff",
+        "option_type": option_type, "open": close, "high": close, "low": close, "close": close,
+        "settle_price": close if settle is None else settle, "contracts": contracts,
+        "turnover_rs": 1.0, "open_interest": 1, "change_in_oi": 0, "lot_size": lot,
+        "underlying_price": 22000.0, "zero_volume": contracts == 0, "source_format": "udiff",
+        "lot_size_source": "udiff" if lot is not None else None,
     }  # fmt: skip
 
 
@@ -60,3 +64,28 @@ def write_special_sessions(directory: Path, rows: list[tuple[str, str, str]]) ->
     lines = ["date,kind,short_session,fo_hours,source,source_url"]
     lines += [f"{d},{k},{s},n/a,test source,https://example.invalid" for d, k, s in rows]
     (directory / "special_sessions.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_index(cfg: DataConfig, closes: dict[date, float], vix: float = 15.0) -> None:
+    """A hand-built index_daily.parquet: NIFTY close per day, flat VIX and TRI."""
+    import pandas as pd
+
+    from nifty_backtest.marketdata.indices import COLUMNS, index_path
+
+    rows = [
+        {"date": d, "nifty_open": c, "nifty_high": c, "nifty_low": c, "nifty_close": c,
+         "vix_open": vix, "vix_high": vix, "vix_low": vix, "vix_close": vix,
+         "nifty_tri": c * 1.4, "nifty_vix_source": "nse_api"}
+        for d, c in closes.items()
+    ]  # fmt: skip
+    path = index_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows, columns=COLUMNS).to_parquet(path, index=False)
+
+
+def write_events(directory: Path, rows: list[tuple[str, str]]) -> None:
+    """A reference/events.csv with (date, type) rows."""
+    directory.mkdir(parents=True, exist_ok=True)
+    lines = ["date,type,description,source,source_url"]
+    lines += [f"{d},{k},test event,test source,https://example.invalid" for d, k in rows]
+    (directory / "events.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")

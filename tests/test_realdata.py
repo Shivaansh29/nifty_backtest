@@ -170,3 +170,68 @@ def test_every_weekday_without_a_session_is_an_official_holiday(real_cfg: DataCo
         and d not in holidays
     ]  # fmt: skip
     assert gaps == []
+
+
+def _one_trade(real_cfg: DataConfig, entry: date, expiry: date) -> dict[str, object]:
+    from dataclasses import replace
+
+    from nifty_backtest.engine.backtest import RunConfig, run_backtest
+    from nifty_backtest.strategies.short_straddle import ShortStraddle
+
+    _stored(real_cfg)
+    run = RunConfig(data=replace(real_cfg, start=entry, end=expiry))
+    result = run_backtest(run, ShortStraddle())
+    assert result.skipped.empty
+    trades = result.trades[result.trades["expiry"] == expiry]
+    assert len(trades) == 1
+    return dict(trades.iloc[0])
+
+
+# The three trades below were traced by hand from NSE's raw files, with a script that uses
+# none of the project's code (raw zip -> csv module). Inputs quoted in each comment.
+
+
+def test_hand_traced_trade_event_week_4_jun_2024(real_cfg: DataConfig) -> None:
+    # Entry Mon 3 Jun 2024 (3 sessions before Thu 6 Jun). NIFTY close 23,263.90
+    # (ind_close_all_03062024.csv; = UDiFF UndrlygPric) -> ATM 23,250 (13.90 vs 36.10 away).
+    # fo03JUN2024bhav: 23250 CE close 349.30 (908,306 contracts), PE close 319.80 (432,363).
+    # Lot 25 (same-day UDiFF NewBrdLotQty). fo06JUN2024bhav: settle 22821.40 on both legs.
+    # Premium 669.10; fills 668.10; PE worth 23,250 - 22,821.40 = 428.60; CE worth 0.
+    # Gross 240.50 pts. Charges: entry 67.4982142 (see test_costs) + PE assignment 0.6732313.
+    # Net = 239.50 x 25 - 68.1714455 = Rs 5,919.3285545. Election result (4 Jun) inside window.
+    t = _one_trade(real_cfg, date(2024, 6, 3), date(2024, 6, 6))
+    assert (t["entry_date"], t["strike"], t["quantity"]) == (date(2024, 6, 3), 23250.0, 25)
+    assert (t["ce_entry_close"], t["pe_entry_close"]) == (349.30, 319.80)
+    assert t["settlement_level"] == 22821.40
+    assert t["value_at_expiry_points"] == pytest.approx(428.60)
+    assert t["pnl_points_gross"] == pytest.approx(240.50)
+    assert t["charges_rs"] == pytest.approx(68.1714455)
+    assert t["pnl_rs_net"] == pytest.approx(5919.3285545)
+    assert t["events"] == "general_election_result@2024-06-04"
+    assert t["nifty_move_pct"] == pytest.approx((22821.40 / 23263.90 - 1) * 100)
+
+
+def test_hand_traced_trade_lot_25_week_30_jan_2025(real_cfg: DataConfig) -> None:
+    # Entry Mon 27 Jan 2025. UDiFF 20250127: UndrlygPric 22,829.15 -> ATM 22,850.
+    # 22850 CE 152.80, PE 154.95, NewBrdLotQty 25 (the 30 Jan contract kept lot 25).
+    # UDiFF 20250130: settle 23,249.50 -> CE worth 399.50, PE 0.
+    # Gross 307.75 - 399.50 = -91.75 pts. Entry charges on Rs 7,668.75 at STT 0.1%,
+    # NSE 0.03503%: 58.0860514; CE assignment 0.6858603. Net = -92.75 x 25 - 58.7719116.
+    t = _one_trade(real_cfg, date(2025, 1, 27), date(2025, 1, 30))
+    assert (t["strike"], t["lot_size"], t["lot_size_source"]) == (22850.0, 25, "udiff")
+    assert t["pnl_points_gross"] == pytest.approx(-91.75)
+    assert t["charges_rs"] == pytest.approx(58.7719116)
+    assert t["pnl_rs_net"] == pytest.approx(-2377.5219116)
+
+
+def test_hand_traced_first_trade_7_oct_2021(real_cfg: DataConfig) -> None:
+    # Entry Mon 4 Oct 2021. ind_close_all_04102021: NIFTY 17,691.25 -> ATM 17,700.
+    # fo04OCT2021bhav: 17700 CE 100.30, PE 92.95; lot 50 from reference/lot_sizes_legacy.csv.
+    # fo07OCT2021bhav: settle 17,790.35 -> CE worth 90.35. Gross 193.25 - 90.35 = 102.90 pts.
+    # Charges at STT 0.05%, NSE 0.053%: entry 58.0292597, CE assignment 1.0496307.
+    # Net = 101.90 x 50 - 59.0788903 = Rs 5,035.9211097.
+    t = _one_trade(real_cfg, date(2021, 10, 4), date(2021, 10, 7))
+    assert (t["strike"], t["lot_size"], t["lot_size_source"]) == (17700.0, 50, "reference_table")
+    assert t["pnl_points_gross"] == pytest.approx(102.90)
+    assert t["charges_rs"] == pytest.approx(59.0788903)
+    assert t["pnl_rs_net"] == pytest.approx(5035.9211097)
