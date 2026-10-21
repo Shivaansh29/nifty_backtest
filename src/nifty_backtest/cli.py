@@ -9,6 +9,7 @@ import logging
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date
+from pathlib import Path
 
 from nifty_backtest import __version__
 from nifty_backtest.marketdata.config import DataConfig
@@ -93,8 +94,9 @@ def _backtest(args: argparse.Namespace, cfg: DataConfig) -> int:
     from nifty_backtest.engine.runs import save_run
     from nifty_backtest.strategies.short_straddle import ShortStraddle
 
+    # Resolve "up to today" before running, so the run and its saved config use the same date.
     run_cfg = RunConfig(
-        data=cfg,
+        data=replace(cfg, end=cfg.end_date(date.today())),
         costs=CostConfig(
             brokerage_per_order_rs=args.brokerage, slippage_points_per_leg=args.slippage
         ),
@@ -103,19 +105,25 @@ def _backtest(args: argparse.Namespace, cfg: DataConfig) -> int:
     strategy = ShortStraddle(entry_days_before_expiry=args.entry_days_before, lots=args.lots)
     result = run_backtest(run_cfg, strategy)
     folder = save_run(result, run_cfg, strategy)
-    t = result.trades
-    print(f"trades: {len(t)}  skipped: {len(result.skipped)}")
+    print(f"trades: {len(result.trades)}  skipped: {len(result.skipped)}")
     if not result.skipped.empty:
         print(result.skipped["reason"].value_counts().to_string())
-    if not t.empty:
-        gross, slip = t["pnl_rs_gross"].sum(), t["slippage_rs"].sum()
-        charges, net = t["charges_rs"].sum(), t["pnl_rs_net"].sum()
-        print(
-            f"P&L gross Rs {gross:,.0f} | slippage Rs {slip:,.0f} | charges Rs {charges:,.0f}"
-            f" | net Rs {net:,.0f}"
-        )
-        print(f"net P&L, index points per unit, summed: {t['pnl_points_net'].sum():,.1f}")
-    print(f"run saved to {folder}  (metrics arrive in M4)")
+    if not result.trades.empty:
+        from nifty_backtest.metrics.summary import summary_text, write_metrics
+
+        print(summary_text(write_metrics(folder)))
+    print(f"run saved to {folder} (metrics.json, yearly.csv, monthly.csv, summary.md)")
+    return 0
+
+
+def _metrics(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.metrics.summary import MetricsConfig, summary_text, write_metrics
+
+    metrics_cfg = MetricsConfig(
+        risk_free_rate=args.risk_free, periods_per_year=args.periods_per_year
+    )
+    print(summary_text(write_metrics(args.run_dir, metrics_cfg)))
+    print(f"metrics written to {args.run_dir}")
     return 0
 
 
@@ -163,6 +171,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--slippage", type=float, default=0.5, help="index points per unit per leg (assumption)"
     )
     bt.add_argument("--capital", type=float, default=500_000.0, help="starting capital in Rs")
+    met = commands.add_parser("metrics", help="(re)compute metrics for a saved run folder")
+    met.add_argument("run_dir", type=Path, help="e.g. runs/20261021-120000-short_straddle")
+    met.add_argument("--risk-free", type=float, default=0.065, help="annual rate (default 0.065)")
+    met.add_argument(
+        "--periods-per-year", type=int, default=252, help="annualisation (default 252)"
+    )
     sql = commands.add_parser("sql", help="run a DuckDB SQL query against the `options` view")
     sql.add_argument("statement", help='e.g. "SELECT count(*) FROM options"')
 
@@ -185,6 +199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "build": _build,
         "expiries": _expiries,
         "backtest": _backtest,
+        "metrics": _metrics,
         "report": _report,
         "sql": _sql,
     }

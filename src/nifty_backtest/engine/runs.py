@@ -9,12 +9,18 @@ Each run gets its own folder, runs/<run_id>/, containing:
   marks.csv      daily mark-to-market of every trade
   equity.csv     account value at every close
   skipped.csv    weeks not traded, with the reason
-Metrics are added in M4.
+  metrics.json, yearly.csv, monthly.csv, summary.md   performance metrics (M4, metrics/)
+
+Reproducibility (M4, D6): a run asked for "up to today" (end = None) stores the concrete end date
+it used, so re-running the saved config reads exactly the same days; and saving from a working
+tree with uncommitted changes logs a warning, because the recorded commit would not contain
+the code that produced the run.
 """
 
 import dataclasses
 import hashlib
 import json
+import logging
 import subprocess
 from datetime import date, datetime
 from pathlib import Path
@@ -22,6 +28,8 @@ from pathlib import Path
 from nifty_backtest.engine.backtest import BacktestResult, RunConfig
 from nifty_backtest.marketdata.indices import index_path
 from nifty_backtest.strategies.base import Strategy
+
+log = logging.getLogger(__name__)
 
 
 def _jsonable(value: object) -> object:
@@ -73,14 +81,34 @@ def data_manifest(cfg: RunConfig, result: BacktestResult) -> dict[str, object]:
     }
 
 
+def resolve_end(cfg: RunConfig, today: date) -> RunConfig:
+    """Replace an open-ended window ("up to today") with the concrete date it means."""
+    if cfg.data.end is not None:
+        return cfg
+    return dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, end=today))
+
+
 def save_run(
-    result: BacktestResult, cfg: RunConfig, strategy: Strategy, runs_dir: Path = Path("runs")
+    result: BacktestResult,
+    cfg: RunConfig,
+    strategy: Strategy,
+    runs_dir: Path = Path("runs"),
+    today: date | None = None,
 ) -> Path:
+    cfg = resolve_end(cfg, today or date.today())
     run_id = f"{datetime.now():%Y%m%d-%H%M%S}-{strategy.name}"
     folder = runs_dir / run_id
     folder.mkdir(parents=True)
+    git = _git_state()
+    if git["uncommitted_changes"]:
+        log.warning(
+            "run %s saved from a working tree with uncommitted changes: the recorded commit %s "
+            "does not contain the exact code that produced it",
+            run_id,
+            str(git["commit"])[:7],
+        )
     config = {"run": _jsonable(cfg), "strategy": _jsonable(strategy)}
-    manifest = {"run_id": run_id, "git": _git_state(), "data": data_manifest(cfg, result)}
+    manifest = {"run_id": run_id, "git": git, "data": data_manifest(cfg, result)}
     (folder / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
     (folder / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     result.trades.to_csv(folder / "trades.csv", index=False)

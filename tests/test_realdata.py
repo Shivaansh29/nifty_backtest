@@ -14,6 +14,7 @@ from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.marketdata.download import read_log
 from nifty_backtest.marketdata.quality import compare_formats
 from nifty_backtest.marketdata.sources import Format, raw_path
+from tests.helpers import REPO_DATA
 
 pytestmark = pytest.mark.realdata
 
@@ -235,3 +236,41 @@ def test_hand_traced_first_trade_7_oct_2021(real_cfg: DataConfig) -> None:
     assert t["pnl_points_gross"] == pytest.approx(102.90)
     assert t["charges_rs"] == pytest.approx(59.0788903)
     assert t["pnl_rs_net"] == pytest.approx(5035.9211097)
+
+
+REPO_RUNS = REPO_DATA.parent / "runs"
+
+
+def test_metrics_on_the_latest_saved_run_reconcile_with_m3() -> None:
+    """Validation against the saved M3 run: every reconciliation holds, and for a default-cost
+    run over the M3 data window the totals are exactly M3's."""
+    import json
+
+    from nifty_backtest.metrics.series import load_run
+    from nifty_backtest.metrics.summary import compute_metrics
+
+    folders = sorted(p for p in REPO_RUNS.glob("*-short_straddle") if (p / "trades.csv").exists())
+    if not folders:
+        pytest.skip("no saved runs; run `nifty-backtest backtest`")
+    folder = folders[-1]
+    metrics, yearly, _ = compute_metrics(load_run(folder))
+    assert max(abs(v) for v in metrics["reconciliation"].values()) < 1e-6
+    assert metrics["strategy_net"]["missing_days"] == 0
+    assert metrics["strategy_net"]["notional_missing_days"] == 0
+
+    manifest = json.loads((folder / "manifest.json").read_text())
+    costs = json.loads((folder / "config.json").read_text())["run"]["costs"]
+    m3_window = (
+        manifest["data"]["first_trading_day"] == "2021-10-01"
+        and manifest["data"]["last_trading_day"] == "2026-10-16"
+    )
+    if m3_window and (costs["brokerage_per_order_rs"], costs["slippage_points_per_leg"]) == (
+        20.0,
+        0.5,
+    ):
+        assert metrics["trades"]["trades"] == 263
+        assert metrics["trades"]["net_rs"] == pytest.approx(279_138.515828, abs=1e-4)
+        assert metrics["strategy_net"]["roi"] == pytest.approx(279_138.515828 / 500_000, abs=1e-9)
+        # TRI on 1 Oct 2021 = 25,111.25 (niftyindices answer, traced by hand in M2).
+        assert metrics["benchmark_nifty50_tri"]["tri_start"] == 25111.25
+        assert yearly["trades"].sum() == 263
