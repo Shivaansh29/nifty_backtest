@@ -14,6 +14,12 @@ from pathlib import Path
 from nifty_backtest import __version__
 from nifty_backtest.marketdata.config import DataConfig
 
+log = logging.getLogger(__name__)
+
+# Addresses only this computer can reach. The API has no authentication (M5), so binding to
+# anything else is allowed but warned about.
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
+
 
 def _download(args: argparse.Namespace, cfg: DataConfig) -> int:
     from nifty_backtest.marketdata.download import download_range, make_client
@@ -127,6 +133,24 @@ def _metrics(args: argparse.Namespace, cfg: DataConfig) -> int:
     return 0
 
 
+def _serve(args: argparse.Namespace, cfg: DataConfig) -> int:
+    import uvicorn
+
+    from nifty_backtest.api.app import create_app
+    from nifty_backtest.api.settings import ApiSettings
+
+    if args.host not in LOCAL_HOSTS:
+        log.warning(
+            "serving on %s: the API has no authentication, so anyone who can reach this "
+            "address can read every run and launch new ones",
+            args.host,
+        )
+    app = create_app(ApiSettings(runs_dir=args.runs_dir, data=cfg))
+    print(f"API docs: http://{args.host}:{args.port}/docs")
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return the process exit code (0 = success).
 
@@ -177,6 +201,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     met.add_argument(
         "--periods-per-year", type=int, default=252, help="annualisation (default 252)"
     )
+    serve = commands.add_parser("serve", help="serve saved runs over HTTP (FastAPI, M5)")
+    serve.add_argument(
+        "--host", default="127.0.0.1", help="address to bind (default 127.0.0.1: this computer)"
+    )
+    serve.add_argument("--port", type=int, default=8000, help="port (default 8000)")
+    serve.add_argument(
+        "--runs-dir", type=Path, default=Path("runs"), help="folder of saved runs (default runs)"
+    )
     sql = commands.add_parser("sql", help="run a DuckDB SQL query against the `options` view")
     sql.add_argument("statement", help='e.g. "SELECT count(*) FROM options"')
 
@@ -201,6 +233,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "backtest": _backtest,
         "metrics": _metrics,
         "report": _report,
+        "serve": _serve,
         "sql": _sql,
     }
     return handlers[args.command](args, cfg)

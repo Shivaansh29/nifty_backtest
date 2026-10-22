@@ -11,9 +11,11 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.6",
+    "fastapi>=0.143.0,<0.144",
     "httpx>=0.28.1",
     "pandas>=3.0.6",
     "pyarrow>=26.0.0",
+    "uvicorn>=0.54.0,<0.55",
 ]
 
 # `uv run nifty-backtest ...` calls main() in src/nifty_backtest/cli.py.
@@ -64,5 +66,9 @@ addopts = ["-ra", "--import-mode=importlib"]
 pythonpath = ["."]
 # Tests marked realdata read the local NSE cache in data/ and skip when it is absent.
 markers = ["realdata: needs the local NSE data cache in data/ (skipped in CI)"]
+# FastAPI's TestClient is Starlette's, which warns that it would prefer the `httpx2` package
+# to `httpx`. That only concerns the test transport, and httpx2 is not an approved
+# dependency, so this one warning is silenced; revisit when upgrading FastAPI.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]
 # Fail on unknown config keys, unregistered markers, and xfail tests that unexpectedly pass.
 strict = true

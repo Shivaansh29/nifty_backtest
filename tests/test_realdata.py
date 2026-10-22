@@ -274,3 +274,27 @@ def test_metrics_on_the_latest_saved_run_reconcile_with_m3() -> None:
         # TRI on 1 Oct 2021 = 25,111.25 (niftyindices answer, traced by hand in M2).
         assert metrics["benchmark_nifty50_tri"]["tri_start"] == 25111.25
         assert yearly["trades"].sum() == 263
+
+
+def test_api_serves_every_saved_run() -> None:
+    """M5: every real run folder loads through the API without being invalid, and a run's
+    metrics are served exactly as saved (here, the M4 reference totals)."""
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from nifty_backtest.api.app import create_app
+    from nifty_backtest.api.settings import ApiSettings
+
+    if not REPO_RUNS.is_dir():
+        pytest.skip("no saved runs; run `nifty-backtest backtest`")
+    client = TestClient(create_app(ApiSettings(runs_dir=REPO_RUNS)))
+    runs = client.get("/api/runs").json()
+    assert runs, "runs/ holds no run folders"
+    assert {r["status"] for r in runs} <= {"complete", "metrics_missing"}
+    for run in (r for r in runs if r["status"] == "complete"):
+        served = client.get(f"/api/runs/{run['run_id']}/metrics").json()
+        saved = json.loads((REPO_RUNS / run["run_id"] / "metrics.json").read_text())
+        assert served == saved
+        trades = client.get(f"/api/runs/{run['run_id']}/trades").json()
+        assert sum(t["pnl_rs_net"] for t in trades) == pytest.approx(served["trades"]["net_rs"])

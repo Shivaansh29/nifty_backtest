@@ -6,10 +6,10 @@ Backtests NIFTY 50 index option strategies on real NSE end-of-day data and shows
 an interactive web dashboard. Version 1 tests one strategy, a weekly short straddle, from
 October 2021 to the latest trading day.
 
-> **Status: M4 (metrics) complete.** The short straddle runs over five years of NSE data
+> **Status: M5 (API) complete.** The short straddle runs over five years of NSE data
 > (263 weekly trades) with a dated, sourced cost model, and every spec metric is computed
 > against a NIFTY 50 TRI buy-and-hold benchmark. All numbers below come from one saved,
-> reproducible run.
+> reproducible run, and a FastAPI backend serves saved runs and launches new ones.
 
 ## Principles
 
@@ -40,6 +40,7 @@ uv run nifty-backtest report           # data-quality report -> reports/data_qua
 uv run nifty-backtest backtest         # short straddle -> runs/<run_id>/ (trades, marks, equity, metrics)
 uv run nifty-backtest metrics runs/<run_id>   # recompute metrics for a saved run
 uv run nifty-backtest sql "SELECT count(*) FROM options"   # query with DuckDB
+uv run nifty-backtest serve            # REST API on http://127.0.0.1:8000 (docs at /docs)
 ```
 
 Run the same checks as CI:
@@ -57,7 +58,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 | M2 | Reference data: expiry calendar, special sessions, lot sizes, index, TRI, VIX, settlement | done |
 | M3 | Engine, short straddle, full cost model, per-trade context | done |
 | M4 | Metrics and reports | done |
-| M5 | FastAPI backend | planned |
+| M5 | FastAPI backend | done |
 | M6 | React dashboard | planned |
 | M7 | Conditions and robustness, one at a time, out-of-sample | planned |
 | M8 | Docker, polish, screenshots | planned |
@@ -125,6 +126,50 @@ Full methodology, per-year table and limitations: [`docs/milestones/M4.md`](docs
   Brokerage (₹20 per order) and slippage (0.5 index points per leg) are assumptions: both are
   configurable, and every run records the values it used.
 
+## API
+
+`uv run nifty-backtest serve` starts a FastAPI server on **127.0.0.1:8000**. Interactive
+documentation, generated from the code, is at http://127.0.0.1:8000/docs.
+
+| Method and path | Returns |
+|---|---|
+| `GET /api/health` | status and version |
+| `GET /api/runs` | every saved run, newest first, with status (`complete`, `metrics_missing` or `invalid`, plus the reasons) and headline numbers |
+| `GET /api/runs/{run_id}` | full config, manifest (git commit, data fingerprints) and which files the run holds |
+| `GET /api/runs/{run_id}/metrics` | `metrics.json` as saved |
+| `GET /api/runs/{run_id}/yearly`, `/monthly` | the calendar-year and monthly tables |
+| `GET /api/runs/{run_id}/trades` | the trade log |
+| `GET /api/runs/{run_id}/trades/{trade_id}` | one trade with its daily marks |
+| `GET /api/runs/{run_id}/equity` | the daily equity curve |
+| `GET /api/runs/{run_id}/skipped` | weeks not traded, with the reason |
+| `POST /api/runs` | run a backtest with parameters and save it, exactly like `nifty-backtest backtest` |
+
+```bash
+curl -s http://127.0.0.1:8000/api/runs
+curl -s http://127.0.0.1:8000/api/runs/<run_id>/metrics
+curl -s http://127.0.0.1:8000/api/runs/<run_id>/trades/NIFTY-2026-05-12
+curl -s -X POST http://127.0.0.1:8000/api/runs -H 'content-type: application/json' \
+     -d '{"start": "2025-01-01", "end": "2025-03-31", "slippage_points_per_leg": 1.0}'
+```
+
+How the API behaves:
+- **It serves saved files exactly as written.** GET requests never recompute metrics; use
+  `nifty-backtest metrics` to compute them for a run that has none.
+- **Every file is checked before it is served.** A missing, unreadable or unexpectedly shaped
+  file returns an error naming that file; nothing is served half-read.
+- **Errors share one JSON shape,** `{error, detail, run_id, artifact}`:
+
+  | Status | When |
+  |---|---|
+  | 404 | the run or trade doesn't exist |
+  | 409 | metrics were never computed, or a launch conflicts with another |
+  | 422 | invalid parameters or run id |
+  | 500 | a saved file is broken, or a launched run failed |
+  | 503 | there is no local market data to launch a run with |
+
+- **It binds to localhost** because it has no authentication. `--host` can change that, and
+  the command warns when it does.
+
 ## Data
 
 Free NSE end-of-day files, downloaded into `data/` on your own machine. That folder is never
@@ -140,10 +185,9 @@ src/nifty_backtest/     Python package: cli.py plus one sub-package per module
   engine/               positions, daily marks, expiry settlement, trade log (M3)
   costs/                brokerage, taxes, exchange fees, slippage (M3)
   metrics/              P&L, drawdown, Sharpe/Sortino, t-statistics, benchmark (M4)
-  api/                  FastAPI backend (M5)
+  api/                  FastAPI backend: reads and checks run folders, launches runs (M5)
 tests/                  pytest suite
 reference/              hand-maintained, sourced reference files (tracked)
-config/                 run configuration: strategy parameters, brokerage, slippage (M3)
 frontend/               React + TypeScript dashboard (M6)
 docs/milestones/        notes for each milestone
 data/ runs/ reports/    downloaded data, saved runs, generated reports (not in git)
