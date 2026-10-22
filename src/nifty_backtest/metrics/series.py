@@ -61,7 +61,7 @@ def load_run(folder: Path) -> RunData:
     )
 
 
-def _sum_keep_gaps(values: pd.Series) -> float:
+def sum_keep_gaps(values: pd.Series) -> float:
     """Sum that stays missing if any part is missing (pandas would silently skip NaN)."""
     return float(values.sum()) if values.notna().all() else float("nan")
 
@@ -78,7 +78,7 @@ def rupee_gross(run: RunData) -> pd.Series:
     marks = run.marks.merge(run.trades[["trade_id", "quantity"]], on="trade_id")
     open_marks = marks[marks["date"] != marks["expiry"]].copy()
     open_marks["gross_rs"] = open_marks["mtm_points_gross"] * open_marks["quantity"]
-    open_by_day = open_marks.groupby("date")["gross_rs"].agg(_sum_keep_gaps)
+    open_by_day = open_marks.groupby("date")["gross_rs"].agg(sum_keep_gaps)
     values, booked = [], 0.0
     for day in run.days:
         booked += float(realised.get(day, 0.0))
@@ -106,6 +106,6 @@ def notional_returns(run: RunData, net: bool = True) -> pd.Series:
     # Before the entry the trade's P&L is 0, so on the entry day the change is the mark itself.
     marks["change"] = change.where(~first_day, marks["per_unit"])
     marks["return"] = marks["change"] / marks["nifty_close_at_entry"]
-    by_day = marks.groupby("date")["return"].agg(_sum_keep_gaps)
+    by_day = marks.groupby("date")["return"].agg(sum_keep_gaps)
     # Days without any trade are flat (return 0); a missing mark stays missing.
     return by_day.reindex(run.days, fill_value=0.0).rename(name)

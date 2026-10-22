@@ -17,15 +17,24 @@ import pytest
 from nifty_backtest.engine import runs
 from nifty_backtest.engine.backtest import run_backtest
 from nifty_backtest.marketdata.config import DataConfig
+from nifty_backtest.marketdata.indices import index_path
 from nifty_backtest.metrics.benchmark import BenchmarkError, tri_equity
 from nifty_backtest.metrics.series import (
+    RunData,
     load_run,
     notional_returns,
     rupee_gross,
     rupee_net,
     rupee_returns,
 )
-from nifty_backtest.metrics.summary import compute_metrics, monthly_table, write_metrics
+from nifty_backtest.metrics.summary import (
+    MetricsConfig,
+    compute_metrics,
+    monthly_table,
+    series_block,
+    write_metrics,
+    yearly_table,
+)
 from nifty_backtest.strategies.short_straddle import ShortStraddle
 from tests.test_engine import MON, THU, TUE, WED, setup, week
 
@@ -156,3 +165,129 @@ def test_write_metrics_creates_the_files(cfg: DataConfig, tmp_path: Path) -> Non
     for name in ("metrics.json", "yearly.csv", "monthly.csv", "summary.md"):
         assert (folder / name).exists()
     assert "HEADLINE" in (folder / "summary.md").read_text()
+
+
+# --- Missing-data rules R1-R5 (M4 correction). Each test reproduces a defect found by probing
+# the original M4 code, which returned NaN without a reason, wrote NaN into metrics.json, or
+# reported a zero drawdown.
+
+NAN = float("nan")
+JAN30, JAN31, FEB3, FEB4 = date(2025, 1, 30), date(2025, 1, 31), date(2025, 2, 3), date(2025, 2, 4)
+
+
+def test_missing_final_equity_nulls_the_totals_with_a_reason() -> None:
+    # R1: 100 -> 110 -> 90 -> (missing). The old code returned NaN; falling back to 90 would
+    # silently shorten the period. Both are wrong: the totals are None, with the reason.
+    equity = pd.Series([100.0, 110.0, 90.0, NAN], index=[JAN30, JAN31, FEB3, FEB4])
+    block = series_block(equity, None, 100.0, MetricsConfig())
+    for key in ("final_equity_rs", "total_pnl_rs", "roi", "cagr"):
+        assert block[key] is None
+    assert block["totals_note"] == (
+        "final equity missing on 2025-02-04: total P&L, ROI and CAGR not computed"
+    )
+    # R2: drawdown over the observed days, 110 -> 90 = Rs 20, flagged as a lower bound.
+    assert block["max_drawdown_rs"] == pytest.approx(20.0)
+    assert block["max_drawdown_lower_bound"] is True
+
+
+def test_an_interior_gap_keeps_the_totals_and_flags_the_drawdown() -> None:
+    # R1: only the last day matters for the totals: 100 -> 105 is +5%.
+    equity = pd.Series([100.0, NAN, 90.0, 105.0], index=[JAN30, JAN31, FEB3, FEB4])
+    block = series_block(equity, None, 100.0, MetricsConfig())
+    assert (block["total_pnl_rs"], block["roi"], block["totals_note"]) == (5.0, 0.05, "")
+    assert block["cagr"] is not None
+    assert block["max_drawdown_rs"] == pytest.approx(10.0)  # 100 (capital) -> 90
+    assert block["max_drawdown_lower_bound"] is True
+    assert block["max_drawdown_note"] == "observed lower bound: 1 daily values missing"
+    assert block["missing_days"] == 1
+
+
+def test_a_missing_month_end_nulls_that_month_and_the_next_only() -> None:
+    # R3: Jan's end (31 Jan) is missing, so Jan has no end and Feb has no start. March starts
+    # from Feb's known end again: 105 -> 126 = +20%.
+    days = [JAN30, JAN31, FEB3, date(2025, 2, 28), date(2025, 3, 3)]
+    equity = pd.Series([100.0, NAN, 90.0, 105.0, 126.0], index=days)
+    table = monthly_table(equity, 100.0, None)
+    assert table["month"].tolist() == ["2025-01", "2025-02", "2025-03"]
+    assert table["note"].tolist() == [
+        "end equity missing (2025-01-31)",
+        "start equity missing (2025-01-31)",
+        "",
+    ]
+    assert table["return"].isna().tolist() == [True, True, False]
+    assert table["pnl_rs"].isna().tolist() == [True, True, False]
+    assert table["return"].iloc[2] == pytest.approx(0.20)
+    assert table.columns[-1] == "note"
+
+
+def test_a_missing_year_start_never_reports_a_zero_drawdown() -> None:
+    # R3, regression: 31 Dec 2024 equity is missing, so 2025 has no start value. The old
+    # yearly table passed NaN as the drawdown's start and reported 0 for a 120 -> 80 fall.
+    days = [date(2024, 12, 30), date(2024, 12, 31), date(2025, 1, 1), date(2025, 1, 2)]
+    values = [100.0, NAN, 120.0, 80.0]
+    trades = pd.DataFrame(
+        {
+            "expiry": [date(2025, 1, 2)],
+            "pnl_rs_net": [-20.0],
+            "pnl_points_net": [-1.0],
+            "pnl_pct_premium_net": [-5.0],
+        }
+    )
+    run = RunData(
+        folder=Path("."),
+        trades=trades,
+        marks=pd.DataFrame(),
+        equity=pd.DataFrame({"date": days, "equity_rs": values}),
+        capital=100.0,
+        config={},
+        manifest={},
+    )
+    equity = pd.Series(values, index=days)
+    notional = pd.Series(0.0, index=days)
+    table = yearly_table(run, equity, notional, None, MetricsConfig()).set_index("year")
+    assert table.loc[2024, "note"] == "end equity missing (2024-12-31)"
+    assert table.loc[2025, "note"] == "start equity missing (2024-12-31)"
+    assert pd.isna(table.loc[2024, "return"])
+    assert pd.isna(table.loc[2025, "return"])
+    assert table.loc[2025, "max_drawdown_rs"] == pytest.approx(40.0)
+    assert table.loc[2025, "max_drawdown_lower_bound"]
+
+
+def test_a_tri_gap_follows_the_same_rules(cfg: DataConfig, tmp_path: Path) -> None:
+    # R4: TRI missing on Tue. Its end points are intact, so the benchmark's ROI still holds,
+    # but its daily ratios are None and its drawdown is a lower bound.
+    folder = saved_run(cfg, tmp_path)
+    index_file = index_path(cfg)
+    index = pd.read_parquet(index_file)
+    index.loc[pd.to_datetime(index["date"]).dt.date == TUE, "nifty_tri"] = NAN
+    index.to_parquet(index_file, index=False)
+
+    metrics, _, monthly = compute_metrics(load_run(folder))
+    bench = metrics["benchmark_nifty50_tri"]
+    assert bench["roi"] == pytest.approx(24900 / 25020 - 1)
+    assert bench["missing_days"] == 1
+    assert bench["max_drawdown_lower_bound"] is True
+    assert bench["sharpe_rupee"]["value"] is None
+    assert bench["index_data_matches_run"] is False  # the file was changed after the run
+    assert monthly["benchmark_return"].iloc[0] == pytest.approx(24900 / 25020 - 1)
+
+
+def test_metrics_json_is_strict_json_with_nulls(cfg: DataConfig, tmp_path: Path) -> None:
+    # R5, regression: with the last day's equity missing the old writer put a bare NaN
+    # (not valid JSON) into metrics.json.
+    folder = saved_run(cfg, tmp_path)
+    equity = pd.read_csv(folder / "equity.csv")
+    equity.loc[equity["date"] == THU.isoformat(), "equity_rs"] = NAN
+    equity.to_csv(folder / "equity.csv", index=False)
+
+    write_metrics(folder)
+    text = (folder / "metrics.json").read_text()
+
+    def reject(token: str) -> None:
+        raise AssertionError(f"non-standard JSON token {token}")
+
+    saved = json.loads(text, parse_constant=reject)
+    assert saved["strategy_net"]["roi"] is None
+    assert "final equity missing" in saved["strategy_net"]["totals_note"]
+    assert saved["reconciliation"]["final_equity_minus_capital_minus_trade_net"] is None
+    assert "checks not possible" in (folder / "summary.md").read_text()

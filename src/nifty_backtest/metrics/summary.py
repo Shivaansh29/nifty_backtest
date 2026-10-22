@@ -14,10 +14,23 @@ Headline conventions (owner-approved for M4, decisions D1-D5):
 - Win = net P&L > 0, loss < 0, exact zero counted separately (sign is the same in rupees,
   points and %, since quantity > 0).
 - Gaps: a daily series with a missing value gets None for its Sharpe/Sortino, with the reason.
+
+Missing-data rules (owner-approved M4 correction, R1-R5):
+- R1 ROI, total P&L and CAGR use the capital and the equity on the run's LAST trading day. If
+  that value is missing they are None with the reason; an earlier day is never used instead.
+- R2 Max drawdown uses the observed days, running peak from the capital; with missing days it
+  is flagged as an observed lower bound.
+- R3 A monthly/yearly return needs both period boundaries (previous period's last day, or the
+  capital, and its own last day); if either is missing it is None with the reason. A yearly
+  drawdown with a missing start value starts from the first observed value (lower bound),
+  never a silent 0.
+- R4 The TRI benchmark goes through the same functions, so the same rules apply.
+- R5 metrics.json is strict JSON: NaN and infinity are written as null.
 """
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
@@ -33,6 +46,7 @@ from nifty_backtest.metrics.series import (
     rupee_gross,
     rupee_net,
     rupee_returns,
+    sum_keep_gaps,
 )
 from nifty_backtest.metrics.stats import (
     Ratio,
@@ -69,15 +83,21 @@ def series_block(
     rf = daily_rate(cfg.risk_free_rate, periods)
     days = list(equity.index)
     final = float(equity.iloc[-1])
+    # R1: the totals need the last trading day's equity itself; never an earlier day's.
+    final_missing = math.isnan(final)
     dd = max_drawdown(equity, capital)
     rupee = rupee_returns(equity, capital)
     block: dict[str, Any] = {
         "first_day": _day(days[0]),
         "last_day": _day(days[-1]),
-        "final_equity_rs": final,
-        "total_pnl_rs": final - capital,
-        "roi": roi(final, capital),
-        "cagr": cagr(capital, final, days[0], days[-1]),
+        "final_equity_rs": None if final_missing else final,
+        "total_pnl_rs": None if final_missing else final - capital,
+        "roi": None if final_missing else roi(final, capital),
+        "cagr": None if final_missing else cagr(capital, final, days[0], days[-1]),
+        "totals_note": f"final equity missing on {_day(days[-1])}: total P&L, ROI and CAGR "
+        "not computed"
+        if final_missing
+        else "",
         "max_drawdown_rs": dd.max_rs,
         "max_drawdown_rs_peak": _day(dd.rs_peak_date),
         "max_drawdown_rs_trough": _day(dd.rs_trough_date),
@@ -86,6 +106,8 @@ def series_block(
         "max_drawdown_pct_peak": _day(dd.pct_peak_date),
         "max_drawdown_pct_trough": _day(dd.pct_trough_date),
         "max_drawdown_pct_recovered": _day(dd.pct_recovery_date),
+        "max_drawdown_lower_bound": dd.lower_bound,
+        "max_drawdown_note": dd.note,
         "missing_days": dd.missing_days,
         "sharpe_rupee": _ratio(sharpe(rupee, rf, periods)),
         "sortino_rupee": _ratio(sortino(rupee, rf, periods)),
@@ -162,27 +184,47 @@ def _period_table(
     capital: float,
     benchmark: pd.Series | None,
 ) -> pd.DataFrame:
-    """Start/end equity per period; each period starts from the previous period's end."""
+    """Start/end equity per period; each period starts from the previous period's end.
+
+    R3: a period's P&L and return need both boundaries. If the start (the previous period's
+    last day) or the end (this period's last day) is missing they are None, with the reason
+    in `note`, so one missing month-end empties exactly that month and the next.
+    """
     rows, start = [], capital
     bench_start = None if benchmark is None else capital
+    previous_last: date | None = None
     for key in keys.unique():
         days = keys[keys == key].index
         end = float(equity.loc[days].iloc[-1])
+        missing = []
+        if math.isnan(start):
+            missing.append(f"start equity missing ({_day(previous_last)})")
+        if math.isnan(end):
+            missing.append(f"end equity missing ({_day(days[-1])})")
         row: dict[str, Any] = {
             "period": key,
             "trading_days": len(days),
             "start_equity_rs": start,
             "end_equity_rs": end,
-            "pnl_rs": end - start,
-            "return": end / start - 1,
+            "pnl_rs": None if missing else end - start,
+            "return": None if missing else end / start - 1,
+            "note": "; ".join(missing),
         }
         if benchmark is not None and bench_start is not None:
             bench_end = float(benchmark.loc[days].iloc[-1])
-            row["benchmark_return"] = bench_end / bench_start - 1
+            known = not (math.isnan(bench_start) or math.isnan(bench_end))
+            row["benchmark_return"] = bench_end / bench_start - 1 if known else None
+            if not known:
+                row["note"] = "; ".join([*missing, "benchmark boundary missing"])
             bench_start = bench_end
         rows.append(row)
-        start = end
-    return pd.DataFrame(rows)
+        start, previous_last = end, days[-1]
+    return _note_last(pd.DataFrame(rows))
+
+
+def _note_last(frame: pd.DataFrame) -> pd.DataFrame:
+    """Keep the explanatory `note` column at the end, after the numbers."""
+    return frame[[c for c in frame.columns if c != "note"] + ["note"]]
 
 
 def monthly_table(equity: pd.Series, capital: float, benchmark: pd.Series | None) -> pd.DataFrame:
@@ -227,12 +269,13 @@ def yearly_table(
                 "t_stat_points_net": t_stat(trades["pnl_points_net"].tolist()),
                 "max_drawdown_rs": dd.max_rs,
                 "max_drawdown_pct": dd.max_pct,
+                "max_drawdown_lower_bound": dd.lower_bound,
                 "sharpe_notional": sharpe(notional.loc[days], target, periods).value,
                 "sortino_notional": sortino(notional.loc[days], target, periods).value,
                 "sharpe_rupee": sharpe(rupee.loc[days], rf, periods).value,
             }
         )
-    return pd.concat([table, pd.DataFrame(extra)], axis=1)
+    return _note_last(pd.concat([table, pd.DataFrame(extra)], axis=1))
 
 
 def _sha256(path: Path) -> str:
@@ -270,32 +313,37 @@ def compute_metrics(
     yearly = yearly_table(run, net_equity, notional_net, benchmark, cfg)
     monthly = monthly_table(net_equity, run.capital, benchmark)
     total_net = float(net_equity.iloc[-1]) - run.capital
+    # Each check should be ~0 (floating-point noise only). A check that would need a missing
+    # value is NaN (null in metrics.json): it cannot be done, and pandas' default sum, which
+    # skips NaN, would report a misleading mismatch instead.
     reconciliation = {
-        # Each should be ~0 (floating-point noise only).
         "gross_minus_slippage_minus_charges_minus_net": trades.get("gross_rs", 0.0)
         - trades.get("slippage_rs", 0.0)
         - trades.get("charges_rs", 0.0)
         - trades.get("net_rs", 0.0),
         "final_equity_minus_capital_minus_trade_net": total_net - trades.get("net_rs", 0.0),
         "yearly_net_by_expiry_minus_total": float(yearly["net_rs_by_expiry"].sum()) - total_net,
-        "yearly_pnl_by_date_minus_total": float(yearly["pnl_rs"].sum()) - total_net,
-        "monthly_pnl_minus_total": float(monthly["pnl_rs"].sum()) - total_net,
-        "notional_daily_sum_minus_trade_sum": float(notional_net.sum())
+        "yearly_pnl_by_date_minus_total": sum_keep_gaps(yearly["pnl_rs"]) - total_net,
+        "monthly_pnl_minus_total": sum_keep_gaps(monthly["pnl_rs"]) - total_net,
+        "notional_daily_sum_minus_trade_sum": sum_keep_gaps(notional_net)
         - float((run.trades["pnl_points_net"] / run.trades["nifty_close_at_entry"]).sum())
         if not run.trades.empty
         else 0.0,
     }
-    metrics = {
-        "run_id": run.manifest.get("run_id"),
-        "git": run.manifest.get("git"),
-        "metrics_config": asdict(cfg),
-        "capital_rs": run.capital,
-        "strategy_net": series_block(net_equity, notional_net, run.capital, cfg),
-        "strategy_gross": series_block(gross_equity, notional_gross, run.capital, cfg),
-        "benchmark_nifty50_tri": benchmark_block,
-        "trades": trades,
-        "reconciliation": reconciliation,
-    }
+    # R5: None, never NaN or infinity, for every consumer (metrics.json, the CLI, the API).
+    metrics: dict[str, Any] = strict_json(
+        {
+            "run_id": run.manifest.get("run_id"),
+            "git": run.manifest.get("git"),
+            "metrics_config": asdict(cfg),
+            "capital_rs": run.capital,
+            "strategy_net": series_block(net_equity, notional_net, run.capital, cfg),
+            "strategy_gross": series_block(gross_equity, notional_gross, run.capital, cfg),
+            "benchmark_nifty50_tri": benchmark_block,
+            "trades": trades,
+            "reconciliation": reconciliation,
+        }
+    )
     return metrics, yearly, monthly
 
 
@@ -351,9 +399,34 @@ def summary_text(metrics: dict[str, Any]) -> str:
         f"Gross {_fmt(t['gross_rs'], 'rs')} - slippage {_fmt(t['slippage_rs'], 'rs')} - charges "
         f"{_fmt(t['charges_rs'], 'rs')} = net {_fmt(t['net_rs'], 'rs')}",
     ]
-    worst_gap = max(abs(v) for v in metrics["reconciliation"].values())
-    lines.append(f"Reconciliation: largest mismatch Rs {worst_gap:.2e} (all checks should be ~0)")
+    for label, block in (("net", net), ("gross", gross), ("TRI", bench)):
+        for key in ("totals_note", "max_drawdown_note"):
+            if block.get(key):
+                lines.append(f"Note ({label}): {block[key]}")
+    checks = [v for v in metrics["reconciliation"].values() if _finite(v)]
+    skipped = len(metrics["reconciliation"]) - len(checks)
+    worst_gap = max((abs(v) for v in checks), default=0.0)
+    lines.append(
+        f"Reconciliation: largest mismatch Rs {worst_gap:.2e} (all checks should be ~0)"
+        + (f"; {skipped} checks not possible (missing data)" if skipped else "")
+    )
     return "\n".join(lines)
+
+
+def _finite(value: Any) -> bool:
+    return isinstance(value, (int, float)) and math.isfinite(value)
+
+
+def strict_json(value: Any) -> Any:
+    """R5: replace NaN and infinity with None (JSON null), recursively. Python's json module
+    would otherwise write the non-standard tokens NaN / Infinity."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: strict_json(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [strict_json(v) for v in value]
+    return value
 
 
 def markdown_table(frame: pd.DataFrame) -> str:
@@ -374,8 +447,9 @@ def write_metrics(folder: Path, cfg: MetricsConfig | None = None) -> dict[str, A
     """Compute metrics for a saved run and write metrics.json, yearly.csv, monthly.csv and
     summary.md next to its trade log."""
     metrics, yearly, monthly = compute_metrics(load_run(folder), cfg)
+    # allow_nan=False: fail loudly rather than ever write NaN into the file.
     (folder / "metrics.json").write_text(
-        json.dumps(metrics, indent=2, default=str), encoding="utf-8"
+        json.dumps(metrics, indent=2, default=str, allow_nan=False), encoding="utf-8"
     )
     yearly.to_csv(folder / "yearly.csv", index=False)
     monthly.to_csv(folder / "monthly.csv", index=False)

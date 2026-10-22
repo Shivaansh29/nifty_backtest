@@ -76,6 +76,7 @@ def test_drawdown_hand_computed() -> None:
     assert dd.max_rs == pytest.approx(11.0)
     assert dd.max_pct == pytest.approx(0.10)
     assert (dd.rs_peak_date, dd.rs_trough_date, dd.rs_recovery_date) == (D[1], D[2], D[3])
+    assert (dd.lower_bound, dd.note) == (False, "")  # complete series: an exact value
 
 
 def test_drawdown_in_rupees_and_percent_can_differ() -> None:
@@ -99,6 +100,21 @@ def test_drawdown_counts_from_the_starting_capital() -> None:
 def test_drawdown_reports_missing_days() -> None:
     dd = max_drawdown(pd.Series([100.0, float("nan"), 90.0], index=D[:3]), 100.0)
     assert (dd.max_rs, dd.missing_days) == (10.0, 1)
+    # R2: a trough could hide in the gap, so 10 is only what was observed.
+    assert dd.lower_bound
+    assert dd.note == "observed lower bound: 1 daily values missing"
+
+
+def test_drawdown_with_a_missing_start_value_is_never_a_silent_zero() -> None:
+    # Regression (M4 correction): with start NaN the old code compared every value against
+    # NaN, never saw a fall, and reported 0. Now the peak starts at the first observed value:
+    # 120 -> 80 is a Rs 40 fall, 40 / 120 = 33.33%.
+    dd = max_drawdown(pd.Series([120.0, 80.0, 100.0], index=D[:3]), float("nan"))
+    assert dd.max_rs == pytest.approx(40.0)
+    assert dd.max_pct == pytest.approx(1 / 3)
+    assert (dd.rs_peak_date, dd.rs_trough_date, dd.rs_recovery_date) == (D[0], D[1], None)
+    assert dd.lower_bound
+    assert "starting value missing" in dd.note
 
 
 def test_t_stat_hand_computed() -> None:

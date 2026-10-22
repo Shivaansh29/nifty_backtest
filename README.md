@@ -112,6 +112,10 @@ Full methodology, per-year table and limitations: [`docs/milestones/M4.md`](docs
     straddle never invests its notional.
   - **Rupee and benchmark versions:** they use a **6.5%** risk-free rate.
   - **Gaps:** any missing day makes these ratios null. They are never stitched across a gap.
+- **Missing data elsewhere.** ROI, total P&L and CAGR are null if the last day's equity is
+  missing; an earlier day is never used instead. With missing days, max drawdown is reported as
+  an observed lower bound. A monthly or yearly return is null if either of its boundary days is
+  missing. `metrics.json` writes null, never NaN.
 - **t-statistics.** Computed on net % of premium collected (leading) and net points per unit,
   never on rupees.
 - **Costs.** Statutory and exchange charges come from a dated table in

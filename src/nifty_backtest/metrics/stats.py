@@ -84,18 +84,28 @@ class Drawdown:
     pct_trough_date: date | None
     pct_recovery_date: date | None
     missing_days: int  # days skipped because their value is missing
+    lower_bound: bool  # True if days (or the start value) are missing: the true fall may be larger
+    note: str = ""
 
 
 def max_drawdown(equity: pd.Series, start_value: float) -> Drawdown:
     """Largest fall from a running peak, in rupees and in % of that peak.
 
     The running peak starts at `start_value` (the capital), so a loss from day one counts.
-    Days with a missing value are skipped and counted: a trough could hide in a gap.
+    Days with a missing value are skipped and counted: a trough could hide in a gap. Every
+    observed peak and trough really happened, so with gaps the result is an OBSERVED LOWER
+    BOUND (the true drawdown is at least this large) and is flagged as one.
+
+    If `start_value` itself is missing (NaN, e.g. a year whose previous year-end equity is
+    missing), the running peak starts at the first observed value instead. Comparing against
+    NaN would otherwise never register a fall and silently report 0.
     """
     values = equity.dropna()
     missing = len(equity) - len(values)
     days: list[date] = list(values.index)
-    peak_value: float = start_value
+    start_known = not math.isnan(start_value)
+    # -inf: the first observed value becomes the peak (with its date).
+    peak_value: float = start_value if start_known else -math.inf
     peak_date: date | None = None
     best_rs: tuple[float, date | None, date | None] = (0.0, None, None)
     best_pct: tuple[float, date | None, date | None] = (0.0, None, None)
@@ -127,7 +137,20 @@ def max_drawdown(equity: pd.Series, start_value: float) -> Drawdown:
         pct_trough_date=best_pct[2],
         pct_recovery_date=recovery(best_pct[1], best_pct[2]),
         missing_days=missing,
+        lower_bound=bool(missing) or not start_known,
+        note=_drawdown_note(missing, start_known),
     )
+
+
+def _drawdown_note(missing: int, start_known: bool) -> str:
+    reasons = []
+    if missing:
+        reasons.append(f"{missing} daily values missing")
+    if not start_known:
+        reasons.append("starting value missing, peak starts at the first observed value")
+    if not reasons:
+        return ""
+    return "observed lower bound: " + "; ".join(reasons)
 
 
 def t_stat(values: Sequence[float]) -> float | None:
