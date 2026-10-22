@@ -64,8 +64,8 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 
 ## Results (v1 baseline: short straddle, hold to expiry)
 
-From run `20261021-235646-short_straddle`:
-- **Code:** commit `e0d32d4`, clean tree.
+From run `20261022-191259-short_straddle`:
+- **Code:** commit `371bb22`, clean tree.
 - **Data:** 1 Oct 2021 to 16 Oct 2026, 1,251 trading days.
 - **Settings:** ₹5,00,000 capital, 1 lot, entry 3 sessions before expiry, brokerage ₹20/order, slippage 0.5 point per leg.
 
