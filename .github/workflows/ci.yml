@@ -20,7 +20,12 @@ jobs:
 
       # Installs uv; uv then installs the exact Python in .python-version (3.12.15), the same
       # build used locally, instead of whatever Python the runner image happens to ship.
+      # The uv CLI itself is pinned too (the version used locally). Without it CI gets the
+      # newest uv, which can fall outside pyproject.toml's uv_build range (the build backend,
+      # a separate package) and then builds the project with a different toolchain.
       - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.24"
 
       # --locked fails if uv.lock is out of date with pyproject.toml, instead of silently
       # resolving different versions than the ones tested locally.
