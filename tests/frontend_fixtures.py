@@ -14,8 +14,10 @@ Four runs cover the dashboard's states:
   INVALID_ID  trades.csv lacks a column (invalid)
 
 Things that would differ between machines or runs (run ids, git state, absolute paths, file
-hashes) are replaced with fixed values, so regenerating gives the same file byte for byte;
-tests/test_api.py checks that the committed file is current.
+hashes) are replaced with fixed values, so regenerating gives the same file on the same
+platform. Across platforms a float read back from CSV can differ in its last binary digit, so
+tests/test_api.py checks the committed file is current with numbers compared to 12
+significant digits.
 
 Regenerate with:  uv run python -m tests.frontend_fixtures
 """
