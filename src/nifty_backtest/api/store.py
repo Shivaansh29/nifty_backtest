@@ -10,6 +10,7 @@ Its files fall into two groups:
            (written by `save_run`; all required)
   metrics  metrics.json, yearly.csv, monthly.csv (written by `write_metrics`; all three or
            none: none means metrics were never computed, which is a normal state)
+  daily    daily.csv (written by `write_metrics` from M6 on; optional, older runs lack it)
 
 Every file is parsed into its Pydantic model before it is served. A file that is missing,
 unreadable or shaped differently from what the code expects raises an ApiError naming the
@@ -28,6 +29,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from nifty_backtest.api.errors import ApiError
 from nifty_backtest.api.schemas import (
+    DailyPoint,
     EquityPoint,
     Headline,
     ManifestFile,
@@ -57,6 +59,9 @@ CORE_FILES = (
     "skipped.csv",
 )
 METRICS_FILES = ("metrics.json", "yearly.csv", "monthly.csv")
+# Added in M6. Metrics written earlier lack it, so it is optional: its absence does not make a
+# run incomplete, but /daily then says how to add it.
+DAILY_FILE = "daily.csv"
 # A run with no trades saves trades.csv and marks.csv with no columns at all (an empty
 # DataFrame); for these two files, "no columns" means "no rows", not a broken file.
 MAY_BE_EMPTY = ("trades.csv", "marks.csv")
@@ -203,6 +208,19 @@ class RunStore:
         self.metrics(run_id)
         return self._csv(run_id, "monthly.csv", MonthRow)
 
+    def daily(self, run_id: str) -> list[DailyPoint]:
+        self.metrics(run_id)
+        if not (self.folder(run_id) / DAILY_FILE).is_file():
+            raise ApiError(
+                409,
+                "metrics_not_computed",
+                "this run's metrics were computed before daily series were saved (M6); run "
+                f"`nifty-backtest metrics {self.runs_dir / run_id}` to add daily.csv",
+                run_id,
+                DAILY_FILE,
+            )
+        return self._csv(run_id, DAILY_FILE, DailyPoint)
+
     # --- summaries -----------------------------------------------------------------------
 
     def summary(self, run_id: str) -> RunSummary:
@@ -239,6 +257,8 @@ class RunStore:
             metrics = attempt(lambda: self.metrics(run_id))
             attempt(lambda: self._csv(run_id, "yearly.csv", YearRow))
             attempt(lambda: self._csv(run_id, "monthly.csv", MonthRow))
+            if (self.folder(run_id) / DAILY_FILE).is_file():
+                attempt(lambda: self._csv(run_id, DAILY_FILE, DailyPoint))
             if problems:
                 status, metrics = "invalid", None
         return RunSummary(
@@ -273,7 +293,10 @@ class RunStore:
             **summary.model_dump(),
             config=config,
             manifest=manifest,
-            artifacts={name: (folder / name).is_file() for name in CORE_FILES + METRICS_FILES},
+            artifacts={
+                name: (folder / name).is_file()
+                for name in (*CORE_FILES, *METRICS_FILES, DAILY_FILE)
+            },
             trade_count=count(self.trades),
             skipped_count=count(self.skipped),
         )

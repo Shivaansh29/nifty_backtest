@@ -10,6 +10,7 @@ import pytest
 from nifty_backtest.metrics.stats import (
     cagr,
     daily_rate,
+    drawdown_series,
     max_drawdown,
     roi,
     sharpe,
@@ -115,6 +116,34 @@ def test_drawdown_with_a_missing_start_value_is_never_a_silent_zero() -> None:
     assert (dd.rs_peak_date, dd.rs_trough_date, dd.rs_recovery_date) == (D[0], D[1], None)
     assert dd.lower_bound
     assert "starting value missing" in dd.note
+
+
+def test_drawdown_series_hand_computed() -> None:
+    # Equity 100 -> 110 -> 99 -> 121, capital 100: peaks 100, 110, 110, 121, so the falls are
+    # 0, 0, 11, 0 rupees and 0, 0, 11/110 = 10%, 0 of the peak.
+    dd = drawdown_series(pd.Series([100.0, 110.0, 99.0, 121.0], index=D), 100.0)
+    assert dd["drawdown_rs"].tolist() == pytest.approx([0.0, 0.0, 11.0, 0.0])
+    assert dd["drawdown_pct"].tolist() == pytest.approx([0.0, 0.0, 0.10, 0.0])
+
+
+@pytest.mark.parametrize(
+    ("values", "start"),
+    [
+        ([200.0, 150.0, 1000.0, 800.0], 100.0),  # rupee and % maxima on different days
+        ([95.0, 97.0, 100.0, 90.0], 100.0),  # loss from day one: peak is the capital
+        ([100.0, float("nan"), 90.0, 105.0], 100.0),  # a gap
+        ([120.0, 80.0, 100.0, 90.0], float("nan")),  # missing start value
+    ],
+)
+def test_drawdown_series_peaks_agree_with_max_drawdown(values: list[float], start: float) -> None:
+    # The daily series must reproduce the M4 metric exactly, including its gap rules.
+    series = pd.Series(values, index=D)
+    daily = drawdown_series(series, start)
+    reference = max_drawdown(series, start)
+    assert daily["drawdown_rs"].max() == reference.max_rs
+    assert daily["drawdown_pct"].max() == reference.max_pct
+    # A missing day stays missing; it is never filled.
+    assert daily["drawdown_rs"].isna().tolist() == series.isna().tolist()
 
 
 def test_t_stat_hand_computed() -> None:

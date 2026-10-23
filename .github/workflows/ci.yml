@@ -43,3 +43,38 @@ jobs:
 
       - name: Test
         run: uv run pytest
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # Node exactly as in frontend/.nvmrc (24.14.1), the version used locally.
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci installs exactly what package-lock.json lists and fails if it disagrees with
+      # package.json, like `uv sync --locked` for Python.
+      - name: Install dependencies exactly as locked
+        run: npm ci
+
+      # The TypeScript types come from the API's OpenAPI schema (src/api/openapi.json, which
+      # the Python job checks against the live app). Regenerate them and fail on any difference.
+      - name: Check generated API types are current
+        run: npm run gen:types && git diff --exit-code src/api/schema.d.ts
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npx vite build

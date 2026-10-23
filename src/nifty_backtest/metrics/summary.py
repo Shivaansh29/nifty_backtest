@@ -52,6 +52,7 @@ from nifty_backtest.metrics.stats import (
     Ratio,
     cagr,
     daily_rate,
+    drawdown_series,
     max_drawdown,
     roi,
     sharpe,
@@ -282,6 +283,43 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def load_tri(run: RunData) -> tuple[pd.Series, Path]:
+    """NIFTY 50 TRI by date from the run's own index data file (and that file's path)."""
+    index_file = Path(run.config["run"]["data"]["data_dir"]) / "processed" / "index_daily.parquet"
+    index = pd.read_parquet(index_file)
+    tri = pd.Series(index["nifty_tri"].to_numpy(), index=pd.to_datetime(index["date"]).dt.date)
+    return tri, index_file
+
+
+def daily_table(run: RunData) -> pd.DataFrame:
+    """The daily series behind the dashboard's charts (M6), saved as daily.csv.
+
+    Built only from functions the metrics already use: the net and gross equity curves, the
+    TRI buy-and-hold curve, and drawdown_series (the same peak rule as max_drawdown). Missing
+    values stay missing. If the benchmark cannot be computed, its columns are empty and
+    metrics.json says why.
+    """
+    net, gross = rupee_net(run), rupee_gross(run)
+    net_drawdown = drawdown_series(net, run.capital)
+    try:
+        benchmark = tri_equity(load_tri(run)[0], run.days, run.capital)
+    except (BenchmarkError, FileNotFoundError, KeyError):
+        benchmark = pd.Series(math.nan, index=run.days)
+    return pd.DataFrame(
+        {
+            "date": run.days,
+            "equity_net_rs": net.to_numpy(),
+            "equity_gross_rs": gross.to_numpy(),
+            "drawdown_net_rs": net_drawdown["drawdown_rs"].to_numpy(),
+            "drawdown_net_pct": net_drawdown["drawdown_pct"].to_numpy(),
+            "benchmark_equity_rs": benchmark.to_numpy(),
+            "benchmark_drawdown_pct": drawdown_series(benchmark, run.capital)[
+                "drawdown_pct"
+            ].to_numpy(),
+        }
+    )
+
+
 def compute_metrics(
     run: RunData, cfg: MetricsConfig | None = None
 ) -> tuple[dict[str, Any], pd.DataFrame, pd.DataFrame]:
@@ -292,13 +330,10 @@ def compute_metrics(
     notional_gross = notional_returns(run, net=False)
 
     # Benchmark: the run's own index data file, checked against the hash in its manifest.
-    data_dir = Path(run.config["run"]["data"]["data_dir"])
-    index_file = data_dir / "processed" / "index_daily.parquet"
     benchmark: pd.Series | None = None
     benchmark_block: dict[str, Any]
     try:
-        index = pd.read_parquet(index_file)
-        tri = pd.Series(index["nifty_tri"].to_numpy(), index=pd.to_datetime(index["date"]).dt.date)
+        tri, index_file = load_tri(run)
         benchmark = tri_equity(tri, run.days, run.capital)
         benchmark_block = series_block(benchmark, None, run.capital, cfg)
         benchmark_block["tri_start"] = float(tri[run.days[0]])
@@ -444,9 +479,11 @@ def markdown_table(frame: pd.DataFrame) -> str:
 
 
 def write_metrics(folder: Path, cfg: MetricsConfig | None = None) -> dict[str, Any]:
-    """Compute metrics for a saved run and write metrics.json, yearly.csv, monthly.csv and
-    summary.md next to its trade log."""
-    metrics, yearly, monthly = compute_metrics(load_run(folder), cfg)
+    """Compute metrics for a saved run and write metrics.json, yearly.csv, monthly.csv,
+    daily.csv (M6) and summary.md next to its trade log."""
+    run = load_run(folder)
+    metrics, yearly, monthly = compute_metrics(run, cfg)
+    daily_table(run).to_csv(folder / "daily.csv", index=False)
     # allow_nan=False: fail loudly rather than ever write NaN into the file.
     (folder / "metrics.json").write_text(
         json.dumps(metrics, indent=2, default=str, allow_nan=False), encoding="utf-8"

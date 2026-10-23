@@ -314,6 +314,20 @@ class MonthRow(PeriodRow):
     month: str
 
 
+class DailyPoint(Artifact):
+    """One day of daily.csv (M6): the series behind the dashboard charts, computed by the
+    metrics code (never by the API or the browser). Drawdowns are positive fractions or
+    rupees below the running peak; benchmark columns are None if the TRI was unavailable."""
+
+    date: date
+    equity_net_rs: float | None
+    equity_gross_rs: float | None
+    drawdown_net_rs: float | None
+    drawdown_net_pct: float | None
+    benchmark_equity_rs: float | None
+    benchmark_drawdown_pct: float | None
+
+
 class YearRow(PeriodRow):
     year: int
     partial_year: bool

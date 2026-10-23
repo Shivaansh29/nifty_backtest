@@ -137,6 +137,28 @@ def test_metrics_saved_before_the_m4_correction_are_served_as_saved(api: Api) ->
     assert api.client.get("/api/runs").json()[0]["status"] == "complete"
 
 
+def test_daily_series_are_served_as_saved(api: Api) -> None:
+    daily = api.get("/daily").json()
+    saved = pd.read_csv(api.folder / "daily.csv")
+    assert [d["date"] for d in daily] == saved["date"].tolist()
+    assert [d["equity_net_rs"] for d in daily] == saved["equity_net_rs"].tolist()
+    assert [d["drawdown_net_pct"] for d in daily] == saved["drawdown_net_pct"].tolist()
+    assert daily[-1]["benchmark_equity_rs"] == pytest.approx(500_000 * 24900 / 25020)
+
+
+def test_runs_saved_before_daily_series_get_a_clear_409(api: Api) -> None:
+    # Metrics computed before M6 have no daily.csv. The run is still complete; the endpoint
+    # explains how to add the file instead of inventing a series.
+    (api.folder / "daily.csv").unlink()
+    response = api.get("/daily")
+    assert response.status_code == 409
+    body = response.json()
+    assert (body["error"], body["artifact"]) == ("metrics_not_computed", "daily.csv")
+    assert f"nifty-backtest metrics {api.folder}" in body["detail"]
+    assert api.client.get("/api/runs").json()[0]["status"] == "complete"
+    assert api.get().json()["artifacts"]["daily.csv"] is False
+
+
 def test_yearly_and_monthly_tables(api: Api) -> None:
     yearly = api.get("/yearly").json()
     assert [row["year"] for row in yearly] == [2025]
@@ -183,6 +205,7 @@ def test_openapi_and_docs_pages() -> None:
         "/api/runs/{run_id}/trades/{trade_id}",
         "/api/runs/{run_id}/equity",
         "/api/runs/{run_id}/skipped",
+        "/api/runs/{run_id}/daily",
     ):
         assert path in paths
     assert "post" in paths["/api/runs"]
@@ -333,6 +356,12 @@ MALFORMED: dict[str, tuple[Callable[[Path], object], str, str, str]] = {
         "/equity",
         "equity.csv",
         "equity_rs",
+    ),
+    "daily series malformed": (
+        _set_cell("daily.csv", "drawdown_net_pct", "deep"),
+        "/daily",
+        "daily.csv",
+        "drawdown_net_pct",
     ),
     "metrics key missing": (
         _edit_json("metrics.json", lambda m: m["strategy_net"].pop("roi")),
@@ -517,3 +546,31 @@ def test_serve_warns_when_exposed_beyond_this_computer(
     monkeypatch.setattr("uvicorn.run", lambda app, **kwargs: None)
     main(["serve", "--host", "0.0.0.0"])
     assert "no authentication" in caplog.text
+
+
+# --- the frontend's copy of the schema (M6) ---------------------------------------------
+
+FRONTEND_SCHEMA = Path(__file__).resolve().parents[1] / "frontend" / "src" / "api" / "openapi.json"
+
+
+def test_frontend_openapi_schema_is_current() -> None:
+    # The dashboard's TypeScript types are generated from this committed file. If the API
+    # changes, `uv run nifty-backtest openapi` must be re-run (CI then regenerates the
+    # TypeScript types and fails if they differ from the committed ones).
+    from nifty_backtest.api.app import openapi_json
+
+    assert FRONTEND_SCHEMA.read_text(encoding="utf-8") == openapi_json(), (
+        "frontend/src/api/openapi.json is out of date: run `uv run nifty-backtest openapi`"
+    )
+
+
+def test_frontend_fixtures_are_current() -> None:
+    # The dashboard tests use responses recorded from this API (tests/frontend_fixtures.py).
+    # Regenerating must give the committed file exactly, so they can never drift from what
+    # the API really sends.
+    from tests.frontend_fixtures import OUTPUT, build
+
+    assert OUTPUT.read_text(encoding="utf-8") == build(), (
+        "frontend/src/test/fixtures.ts is out of date: "
+        "run `uv run python -m tests.frontend_fixtures`"
+    )

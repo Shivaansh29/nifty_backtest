@@ -151,6 +151,16 @@ def _serve(args: argparse.Namespace, cfg: DataConfig) -> int:
     return 0
 
 
+def _openapi(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.api.app import openapi_json
+
+    # The frontend generates its TypeScript types from this file (M6), so the API's schema is
+    # the single source of truth for both sides.
+    args.output.write_text(openapi_json(), encoding="utf-8")
+    print(f"OpenAPI schema written to {args.output}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return the process exit code (0 = success).
 
@@ -209,6 +219,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     serve.add_argument(
         "--runs-dir", type=Path, default=Path("runs"), help="folder of saved runs (default runs)"
     )
+    openapi = commands.add_parser(
+        "openapi", help="write the API's OpenAPI schema (the frontend's types come from it)"
+    )
+    openapi.add_argument(
+        "output",
+        type=Path,
+        nargs="?",
+        default=Path("frontend/src/api/openapi.json"),
+        help="where to write it (default frontend/src/api/openapi.json)",
+    )
     sql = commands.add_parser("sql", help="run a DuckDB SQL query against the `options` view")
     sql.add_argument("statement", help='e.g. "SELECT count(*) FROM options"')
 
@@ -232,6 +252,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "expiries": _expiries,
         "backtest": _backtest,
         "metrics": _metrics,
+        "openapi": _openapi,
         "report": _report,
         "serve": _serve,
         "sql": _sql,

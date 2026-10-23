@@ -6,10 +6,11 @@ Backtests NIFTY 50 index option strategies on real NSE end-of-day data and shows
 an interactive web dashboard. Version 1 tests one strategy, a weekly short straddle, from
 October 2021 to the latest trading day.
 
-> **Status: M5 (API) complete.** The short straddle runs over five years of NSE data
+> **Status: M6 (dashboard) complete.** The short straddle runs over five years of NSE data
 > (263 weekly trades) with a dated, sourced cost model, and every spec metric is computed
 > against a NIFTY 50 TRI buy-and-hold benchmark. All numbers below come from one saved,
-> reproducible run, and a FastAPI backend serves saved runs and launches new ones.
+> reproducible run. A FastAPI backend serves saved runs and launches new ones, and a React
+> dashboard shows them.
 
 ## Principles
 
@@ -43,10 +44,19 @@ uv run nifty-backtest sql "SELECT count(*) FROM options"   # query with DuckDB
 uv run nifty-backtest serve            # REST API on http://127.0.0.1:8000 (docs at /docs)
 ```
 
+Open the dashboard (two terminals; needs [Node](https://nodejs.org/) 24.14.1, see
+`frontend/.nvmrc`):
+
+```bash
+uv run nifty-backtest serve                  # terminal 1: the API on 127.0.0.1:8000
+cd frontend && npm ci && npm run dev         # terminal 2: then open http://127.0.0.1:5173
+```
+
 Run the same checks as CI:
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
+cd frontend && npm run typecheck && npm test && npm run build
 ```
 
 ## Roadmap
@@ -59,7 +69,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 | M3 | Engine, short straddle, full cost model, per-trade context | done |
 | M4 | Metrics and reports | done |
 | M5 | FastAPI backend | done |
-| M6 | React dashboard | planned |
+| M6 | React dashboard | done |
 | M7 | Conditions and robustness, one at a time, out-of-sample | planned |
 | M8 | Docker, polish, screenshots | planned |
 
@@ -142,6 +152,7 @@ documentation, generated from the code, is at http://127.0.0.1:8000/docs.
 | `GET /api/runs/{run_id}/trades/{trade_id}` | one trade with its daily marks |
 | `GET /api/runs/{run_id}/equity` | the daily equity curve |
 | `GET /api/runs/{run_id}/skipped` | weeks not traded, with the reason |
+| `GET /api/runs/{run_id}/daily` | daily net and gross equity, drawdowns and the NIFTY 50 TRI curve, for charts (M6) |
 | `POST /api/runs` | run a backtest with parameters and save it, exactly like `nifty-backtest backtest` |
 
 ```bash
@@ -170,6 +181,25 @@ How the API behaves:
 - **It binds to localhost** because it has no authentication. `--host` can change that, and
   the command warns when it does.
 
+## Dashboard
+
+The dashboard (`frontend/`) is a React + TypeScript app that reads everything from the API.
+- **Run list:** every saved run with its status and headline numbers.
+- **Run page:**
+  - headline ROI, CAGR, drawdown, Sharpe/Sortino and trade statistics;
+  - the net / gross / NIFTY 50 TRI comparison;
+  - equity and drawdown charts against the TRI;
+  - calendar-year table and monthly heatmap;
+  - a sortable, searchable trade table.
+- **Trade page:** one trade's facts, costs and daily marks.
+- **New run:** a form that launches a backtest through `POST /api/runs`.
+
+It does no financial calculation: every number is the API's, and the browser only formats,
+sorts and lays it out. Its TypeScript types are generated from the API's OpenAPI schema
+(`uv run nifty-backtest openapi`, then `npm run gen:types`), and CI fails if either copy is
+out of date. In development, Vite forwards `/api` to the API server, so no CORS setup is
+needed.
+
 ## Data
 
 Free NSE end-of-day files, downloaded into `data/` on your own machine. That folder is never
@@ -188,7 +218,7 @@ src/nifty_backtest/     Python package: cli.py plus one sub-package per module
   api/                  FastAPI backend: reads and checks run folders, launches runs (M5)
 tests/                  pytest suite
 reference/              hand-maintained, sourced reference files (tracked)
-frontend/               React + TypeScript dashboard (M6)
+frontend/               React + TypeScript dashboard: Vite, Tailwind, Recharts, TanStack Table (M6)
 docs/milestones/        notes for each milestone
 data/ runs/ reports/    downloaded data, saved runs, generated reports (not in git)
 ```

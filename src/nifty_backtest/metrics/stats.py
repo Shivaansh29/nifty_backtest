@@ -153,6 +153,30 @@ def _drawdown_note(missing: int, start_known: bool) -> str:
     return "observed lower bound: " + "; ".join(reasons)
 
 
+def drawdown_series(equity: pd.Series, start_value: float) -> pd.DataFrame:
+    """Each day's fall below the running peak, in rupees and as a fraction of that peak (M6).
+
+    The same peak rule as max_drawdown: the peak starts at `start_value` (or, if that is
+    missing, at the first observed value) and only observed days move it. A day whose value
+    is missing stays missing here; it is never filled. The largest values of this series are
+    therefore exactly max_drawdown's max_rs and max_pct, which the tests check.
+    """
+    peak = start_value if not math.isnan(start_value) else -math.inf
+    falls: list[float] = []
+    fractions: list[float] = []
+    for value in equity.tolist():
+        if math.isnan(value):
+            falls.append(math.nan)
+            fractions.append(math.nan)
+            continue
+        peak = max(peak, float(value))
+        fall = peak - float(value)
+        falls.append(fall)
+        # A peak at or below zero has no meaningful percentage (max_drawdown skips it too).
+        fractions.append(fall / peak if peak > 0 else math.nan)
+    return pd.DataFrame({"drawdown_rs": falls, "drawdown_pct": fractions}, index=equity.index)
+
+
 def t_stat(values: Sequence[float]) -> float | None:
     """t = mean / (s / sqrt(n)), s the sample standard deviation. Tests whether the average
     trade differs from zero; assumes trades are independent (weekly, non-overlapping)."""

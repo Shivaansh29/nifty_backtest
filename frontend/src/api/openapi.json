@@ -1,0 +1,3247 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NIFTY options backtester API",
+    "description": "Saved backtest runs (config, manifest, trade log, daily marks, equity curve, metrics, yearly and monthly tables) and launching new runs. Numbers are served exactly as saved in each run folder; GET requests never recompute anything.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List Runs",
+        "description": "Every saved run, newest first, with its status. A broken run folder is listed as\n`invalid` with its problems instead of breaking the list.",
+        "operationId": "list_runs_api_runs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Runs Api Runs Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Launch Run",
+        "description": "Run a short-straddle backtest and save it, as `nifty-backtest backtest` does.\nWaits until the run has finished; with five years of data that takes a while.",
+        "operationId": "launch_run_api_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSummary"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Run Detail",
+        "description": "Status, full config, manifest (git commit, data fingerprints) and which files the\nrun folder holds.",
+        "operationId": "run_detail_api_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/metrics": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Metrics",
+        "description": "metrics.json as saved. 409 if metrics were never computed for this run.",
+        "operationId": "run_metrics_api_runs__run_id__metrics_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/yearly": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Yearly",
+        "operationId": "run_yearly_api_runs__run_id__yearly_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/YearRow"
+                  },
+                  "title": "Response Run Yearly Api Runs  Run Id  Yearly Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/monthly": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Monthly",
+        "operationId": "run_monthly_api_runs__run_id__monthly_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonthRow"
+                  },
+                  "title": "Response Run Monthly Api Runs  Run Id  Monthly Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/daily": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Daily",
+        "description": "Daily net and gross equity, drawdowns and the NIFTY 50 TRI curve (daily.csv), for\ncharts. 409 for runs whose metrics predate daily.csv, with the command that adds it.",
+        "operationId": "run_daily_api_runs__run_id__daily_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DailyPoint"
+                  },
+                  "title": "Response Run Daily Api Runs  Run Id  Daily Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/trades": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Trades",
+        "operationId": "run_trades_api_runs__run_id__trades_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TradeRecord"
+                  },
+                  "title": "Response Run Trades Api Runs  Run Id  Trades Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/trades/{trade_id}": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Trade",
+        "description": "One trade with its mark-to-market on every day it was held.",
+        "operationId": "run_trade_api_runs__run_id__trades__trade_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "trade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "description": "e.g. NIFTY-2025-06-05",
+              "title": "Trade Id"
+            },
+            "description": "e.g. NIFTY-2025-06-05"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/equity": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Equity",
+        "description": "The equity curve exactly as saved in equity.csv (net of costs).",
+        "operationId": "run_equity_api_runs__run_id__equity_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EquityPoint"
+                  },
+                  "title": "Response Run Equity Api Runs  Run Id  Equity Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/skipped": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Skipped",
+        "operationId": "run_skipped_api_runs__run_id__skipped_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SkippedWeek"
+                  },
+                  "title": "Response Run Skipped Api Runs  Run Id  Skipped Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BenchmarkMetrics": {
+        "properties": {
+          "first_day": {
+            "type": "string",
+            "format": "date",
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "final_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Equity Rs"
+          },
+          "total_pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pnl Rs"
+          },
+          "roi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roi"
+          },
+          "cagr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cagr"
+          },
+          "totals_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totals Note"
+          },
+          "max_drawdown_rs": {
+            "type": "number",
+            "title": "Max Drawdown Rs"
+          },
+          "max_drawdown_rs_peak": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs Peak"
+          },
+          "max_drawdown_rs_trough": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs Trough"
+          },
+          "max_drawdown_rs_recovered": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs Recovered"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "max_drawdown_pct_peak": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct Peak"
+          },
+          "max_drawdown_pct_trough": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct Trough"
+          },
+          "max_drawdown_pct_recovered": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct Recovered"
+          },
+          "max_drawdown_lower_bound": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Lower Bound"
+          },
+          "max_drawdown_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Note"
+          },
+          "missing_days": {
+            "type": "integer",
+            "title": "Missing Days"
+          },
+          "sharpe_rupee": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "sortino_rupee": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "tri_start": {
+            "type": "number",
+            "title": "Tri Start"
+          },
+          "tri_end": {
+            "type": "number",
+            "title": "Tri End"
+          },
+          "index_data_matches_run": {
+            "type": "boolean",
+            "title": "Index Data Matches Run"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "first_day",
+          "last_day",
+          "final_equity_rs",
+          "total_pnl_rs",
+          "roi",
+          "cagr",
+          "max_drawdown_rs",
+          "max_drawdown_rs_peak",
+          "max_drawdown_rs_trough",
+          "max_drawdown_rs_recovered",
+          "max_drawdown_pct",
+          "max_drawdown_pct_peak",
+          "max_drawdown_pct_trough",
+          "max_drawdown_pct_recovered",
+          "missing_days",
+          "sharpe_rupee",
+          "sortino_rupee",
+          "tri_start",
+          "tri_end",
+          "index_data_matches_run"
+        ],
+        "title": "BenchmarkMetrics"
+      },
+      "BenchmarkNotComputed": {
+        "properties": {
+          "not_computed": {
+            "type": "string",
+            "title": "Not Computed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "not_computed"
+        ],
+        "title": "BenchmarkNotComputed"
+      },
+      "BestWorst": {
+        "properties": {
+          "best": {
+            "type": "number",
+            "title": "Best"
+          },
+          "best_trade": {
+            "type": "string",
+            "title": "Best Trade"
+          },
+          "worst": {
+            "type": "number",
+            "title": "Worst"
+          },
+          "worst_trade": {
+            "type": "string",
+            "title": "Worst Trade"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "best",
+          "best_trade",
+          "worst",
+          "worst_trade"
+        ],
+        "title": "BestWorst"
+      },
+      "CostSettings": {
+        "properties": {
+          "brokerage_per_order_rs": {
+            "type": "number",
+            "title": "Brokerage Per Order Rs"
+          },
+          "slippage_points_per_leg": {
+            "type": "number",
+            "title": "Slippage Points Per Leg"
+          },
+          "rates_path": {
+            "type": "string",
+            "title": "Rates Path"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brokerage_per_order_rs",
+          "slippage_points_per_leg",
+          "rates_path"
+        ],
+        "title": "CostSettings"
+      },
+      "DailyPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "equity_net_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equity Net Rs"
+          },
+          "equity_gross_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equity Gross Rs"
+          },
+          "drawdown_net_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawdown Net Rs"
+          },
+          "drawdown_net_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawdown Net Pct"
+          },
+          "benchmark_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Equity Rs"
+          },
+          "benchmark_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Drawdown Pct"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "equity_net_rs",
+          "equity_gross_rs",
+          "drawdown_net_rs",
+          "drawdown_net_pct",
+          "benchmark_equity_rs",
+          "benchmark_drawdown_pct"
+        ],
+        "title": "DailyPoint",
+        "description": "One day of daily.csv (M6): the series behind the dashboard charts, computed by the\nmetrics code (never by the API or the browser). Drawdowns are positive fractions or\nrupees below the running peak; benchmark columns are None if the TRI was unavailable."
+      },
+      "DataManifest": {
+        "properties": {
+          "first_trading_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Trading Day"
+          },
+          "last_trading_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Trading Day"
+          },
+          "trading_day_count": {
+            "type": "integer",
+            "title": "Trading Day Count"
+          },
+          "option_files": {
+            "type": "integer",
+            "title": "Option Files"
+          },
+          "option_data_sha256": {
+            "type": "string",
+            "title": "Option Data Sha256"
+          },
+          "index_data_sha256": {
+            "type": "string",
+            "title": "Index Data Sha256"
+          },
+          "reference_files_sha256": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Reference Files Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "first_trading_day",
+          "last_trading_day",
+          "trading_day_count",
+          "option_files",
+          "option_data_sha256",
+          "index_data_sha256",
+          "reference_files_sha256"
+        ],
+        "title": "DataManifest"
+      },
+      "DataSettings": {
+        "properties": {
+          "data_dir": {
+            "type": "string",
+            "title": "Data Dir"
+          },
+          "reference_dir": {
+            "type": "string",
+            "title": "Reference Dir"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "data_dir",
+          "reference_dir",
+          "start",
+          "end"
+        ],
+        "title": "DataSettings",
+        "description": "The data window and paths a run used. Other DataConfig settings (download politeness\nand so on) are passed through as they were saved."
+      },
+      "EquityPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "realised_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Realised Rs"
+          },
+          "open_mtm_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Mtm Rs"
+          },
+          "equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equity Rs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "equity_rs"
+        ],
+        "title": "EquityPoint",
+        "description": "Account value at one close (equity.csv). A run with no trades saves only date and\nequity, so the other two columns are optional."
+      },
+      "ErrorBody": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "artifact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "detail"
+        ],
+        "title": "ErrorBody",
+        "description": "Every error response has this shape."
+      },
+      "GitState": {
+        "properties": {
+          "commit": {
+            "type": "string",
+            "title": "Commit"
+          },
+          "uncommitted_changes": {
+            "type": "boolean",
+            "title": "Uncommitted Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "commit",
+          "uncommitted_changes"
+        ],
+        "title": "GitState"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Headline": {
+        "properties": {
+          "total_pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pnl Rs"
+          },
+          "roi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roi"
+          },
+          "cagr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cagr"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "sharpe_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Notional"
+          },
+          "sortino_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortino Notional"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "win_rate": {
+            "type": "number",
+            "title": "Win Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_pnl_rs",
+          "roi",
+          "cagr",
+          "max_drawdown_pct",
+          "sharpe_notional",
+          "sortino_notional",
+          "trades",
+          "win_rate"
+        ],
+        "title": "Headline",
+        "description": "A few numbers from metrics.json for the run list (net of costs)."
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "Health"
+      },
+      "ManifestFile": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "git": {
+            "$ref": "#/components/schemas/GitState"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DataManifest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "git",
+          "data"
+        ],
+        "title": "ManifestFile"
+      },
+      "MarkRow": {
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "title": "Trade Id"
+          },
+          "expiry": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiry"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "ce_mark": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ce Mark"
+          },
+          "pe_mark": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pe Mark"
+          },
+          "position_value_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Value Points"
+          },
+          "mtm_points_gross": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtm Points Gross"
+          },
+          "mtm_rs_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtm Rs Net"
+          },
+          "stale_mark": {
+            "type": "boolean",
+            "title": "Stale Mark"
+          },
+          "missing_mark": {
+            "type": "boolean",
+            "title": "Missing Mark"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trade_id",
+          "expiry",
+          "date",
+          "ce_mark",
+          "pe_mark",
+          "position_value_points",
+          "mtm_points_gross",
+          "mtm_rs_net",
+          "stale_mark",
+          "missing_mark"
+        ],
+        "title": "MarkRow",
+        "description": "One trade on one day (marks.csv). Values are None where a mark is missing."
+      },
+      "Metrics": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "git": {
+            "$ref": "#/components/schemas/GitState"
+          },
+          "metrics_config": {
+            "$ref": "#/components/schemas/MetricsSettings"
+          },
+          "capital_rs": {
+            "type": "number",
+            "title": "Capital Rs"
+          },
+          "strategy_net": {
+            "$ref": "#/components/schemas/StrategyMetrics"
+          },
+          "strategy_gross": {
+            "$ref": "#/components/schemas/StrategyMetrics"
+          },
+          "benchmark_nifty50_tri": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BenchmarkMetrics"
+              },
+              {
+                "$ref": "#/components/schemas/BenchmarkNotComputed"
+              }
+            ],
+            "title": "Benchmark Nifty50 Tri"
+          },
+          "trades": {
+            "$ref": "#/components/schemas/TradeStats"
+          },
+          "reconciliation": {
+            "$ref": "#/components/schemas/Reconciliation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "git",
+          "metrics_config",
+          "capital_rs",
+          "strategy_net",
+          "strategy_gross",
+          "benchmark_nifty50_tri",
+          "trades",
+          "reconciliation"
+        ],
+        "title": "Metrics",
+        "description": "metrics.json (M4)."
+      },
+      "MetricsSettings": {
+        "properties": {
+          "risk_free_rate": {
+            "type": "number",
+            "title": "Risk Free Rate"
+          },
+          "notional_target_rate": {
+            "type": "number",
+            "title": "Notional Target Rate"
+          },
+          "periods_per_year": {
+            "type": "integer",
+            "title": "Periods Per Year"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "risk_free_rate",
+          "notional_target_rate",
+          "periods_per_year"
+        ],
+        "title": "MetricsSettings"
+      },
+      "MonthRow": {
+        "properties": {
+          "trading_days": {
+            "type": "integer",
+            "title": "Trading Days"
+          },
+          "start_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Equity Rs"
+          },
+          "end_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Equity Rs"
+          },
+          "pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl Rs"
+          },
+          "return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return"
+          },
+          "benchmark_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Return"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "month": {
+            "type": "string",
+            "title": "Month"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trading_days",
+          "start_equity_rs",
+          "end_equity_rs",
+          "pnl_rs",
+          "return",
+          "month"
+        ],
+        "title": "MonthRow"
+      },
+      "Ratio": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "note"
+        ],
+        "title": "Ratio"
+      },
+      "Reconciliation": {
+        "properties": {
+          "gross_minus_slippage_minus_charges_minus_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Minus Slippage Minus Charges Minus Net"
+          },
+          "final_equity_minus_capital_minus_trade_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Equity Minus Capital Minus Trade Net"
+          },
+          "yearly_net_by_expiry_minus_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yearly Net By Expiry Minus Total"
+          },
+          "yearly_pnl_by_date_minus_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yearly Pnl By Date Minus Total"
+          },
+          "monthly_pnl_minus_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Pnl Minus Total"
+          },
+          "notional_daily_sum_minus_trade_sum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notional Daily Sum Minus Trade Sum"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gross_minus_slippage_minus_charges_minus_net",
+          "final_equity_minus_capital_minus_trade_net",
+          "yearly_net_by_expiry_minus_total",
+          "yearly_pnl_by_date_minus_total",
+          "monthly_pnl_minus_total",
+          "notional_daily_sum_minus_trade_sum"
+        ],
+        "title": "Reconciliation",
+        "description": "Each check should be ~0; None means it needed a missing value and was not possible."
+      },
+      "RunConfigFile": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunSettings"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/StrategySettings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run",
+          "strategy"
+        ],
+        "title": "RunConfigFile"
+      },
+      "RunDetail": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "metrics_missing",
+              "invalid"
+            ],
+            "title": "Status"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy"
+          },
+          "git_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Commit"
+          },
+          "uncommitted_changes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncommitted Changes"
+          },
+          "first_trading_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Trading Day"
+          },
+          "last_trading_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Trading Day"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Headline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "config": {
+            "$ref": "#/components/schemas/RunConfigFile"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ManifestFile"
+          },
+          "artifacts": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Artifacts"
+          },
+          "trade_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trade Count"
+          },
+          "skipped_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "created_at",
+          "status",
+          "problems",
+          "strategy",
+          "git_commit",
+          "uncommitted_changes",
+          "first_trading_day",
+          "last_trading_day",
+          "headline",
+          "config",
+          "manifest",
+          "artifacts",
+          "trade_count",
+          "skipped_count"
+        ],
+        "title": "RunDetail"
+      },
+      "RunRequest": {
+        "properties": {
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "description": "first day; default: the data config's start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End",
+            "description": "last day; default: today"
+          },
+          "entry_days_before_expiry": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Entry Days Before Expiry",
+            "default": 3
+          },
+          "lots": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Lots",
+            "default": 1
+          },
+          "brokerage_per_order_rs": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Brokerage Per Order Rs",
+            "default": 20.0
+          },
+          "slippage_points_per_leg": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slippage Points Per Leg",
+            "default": 0.5
+          },
+          "capital_rs": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Capital Rs",
+            "default": 500000.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunRequest",
+        "description": "Parameters for POST /api/runs: the same choices `nifty-backtest backtest` offers."
+      },
+      "RunSettings": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataSettings"
+          },
+          "costs": {
+            "$ref": "#/components/schemas/CostSettings"
+          },
+          "capital_rs": {
+            "type": "number",
+            "title": "Capital Rs"
+          },
+          "underlying": {
+            "type": "string",
+            "title": "Underlying"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "costs",
+          "capital_rs",
+          "underlying"
+        ],
+        "title": "RunSettings"
+      },
+      "RunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "metrics_missing",
+              "invalid"
+            ],
+            "title": "Status"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy"
+          },
+          "git_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Commit"
+          },
+          "uncommitted_changes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncommitted Changes"
+          },
+          "first_trading_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Trading Day"
+          },
+          "last_trading_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Trading Day"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Headline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "created_at",
+          "status",
+          "problems",
+          "strategy",
+          "git_commit",
+          "uncommitted_changes",
+          "first_trading_day",
+          "last_trading_day",
+          "headline"
+        ],
+        "title": "RunSummary"
+      },
+      "SkippedWeek": {
+        "properties": {
+          "expiry": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiry"
+          },
+          "entry_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Date"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expiry",
+          "entry_date",
+          "reason"
+        ],
+        "title": "SkippedWeek"
+      },
+      "StrategyMetrics": {
+        "properties": {
+          "first_day": {
+            "type": "string",
+            "format": "date",
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "final_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Equity Rs"
+          },
+          "total_pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pnl Rs"
+          },
+          "roi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roi"
+          },
+          "cagr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cagr"
+          },
+          "totals_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totals Note"
+          },
+          "max_drawdown_rs": {
+            "type": "number",
+            "title": "Max Drawdown Rs"
+          },
+          "max_drawdown_rs_peak": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs Peak"
+          },
+          "max_drawdown_rs_trough": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs Trough"
+          },
+          "max_drawdown_rs_recovered": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs Recovered"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "max_drawdown_pct_peak": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct Peak"
+          },
+          "max_drawdown_pct_trough": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct Trough"
+          },
+          "max_drawdown_pct_recovered": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct Recovered"
+          },
+          "max_drawdown_lower_bound": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Lower Bound"
+          },
+          "max_drawdown_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Note"
+          },
+          "missing_days": {
+            "type": "integer",
+            "title": "Missing Days"
+          },
+          "sharpe_rupee": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "sortino_rupee": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "sharpe_notional": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "sortino_notional": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "sensitivity_sharpe_notional_at_rf": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "sensitivity_sortino_notional_at_rf": {
+            "$ref": "#/components/schemas/Ratio"
+          },
+          "notional_missing_days": {
+            "type": "integer",
+            "title": "Notional Missing Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "first_day",
+          "last_day",
+          "final_equity_rs",
+          "total_pnl_rs",
+          "roi",
+          "cagr",
+          "max_drawdown_rs",
+          "max_drawdown_rs_peak",
+          "max_drawdown_rs_trough",
+          "max_drawdown_rs_recovered",
+          "max_drawdown_pct",
+          "max_drawdown_pct_peak",
+          "max_drawdown_pct_trough",
+          "max_drawdown_pct_recovered",
+          "missing_days",
+          "sharpe_rupee",
+          "sortino_rupee",
+          "sharpe_notional",
+          "sortino_notional",
+          "sensitivity_sharpe_notional_at_rf",
+          "sensitivity_sortino_notional_at_rf",
+          "notional_missing_days"
+        ],
+        "title": "StrategyMetrics"
+      },
+      "StrategySettings": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "entry_days_before_expiry": {
+            "type": "integer",
+            "title": "Entry Days Before Expiry"
+          },
+          "lots": {
+            "type": "integer",
+            "title": "Lots"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "entry_days_before_expiry",
+          "lots"
+        ],
+        "title": "StrategySettings",
+        "description": "Every strategy has a name, entry timing and lot count; its other parameters pass\nthrough as saved, so new strategies need no change here."
+      },
+      "TradeDetail": {
+        "properties": {
+          "trade": {
+            "$ref": "#/components/schemas/TradeRecord"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/MarkRow"
+            },
+            "type": "array",
+            "title": "Marks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trade",
+          "marks"
+        ],
+        "title": "TradeDetail",
+        "description": "A single trade with its daily marks (drill-down)."
+      },
+      "TradeRecord": {
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "title": "Trade Id"
+          },
+          "underlying": {
+            "type": "string",
+            "title": "Underlying"
+          },
+          "strategy": {
+            "type": "string",
+            "title": "Strategy"
+          },
+          "entry_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Entry Date"
+          },
+          "expiry": {
+            "type": "string",
+            "format": "date",
+            "title": "Expiry"
+          },
+          "expiry_weekday": {
+            "type": "string",
+            "title": "Expiry Weekday"
+          },
+          "stated_expiry_on_entry": {
+            "type": "string",
+            "format": "date",
+            "title": "Stated Expiry On Entry"
+          },
+          "relabelled": {
+            "type": "boolean",
+            "title": "Relabelled"
+          },
+          "calendar_days_to_expiry": {
+            "type": "integer",
+            "title": "Calendar Days To Expiry"
+          },
+          "trading_days_held": {
+            "type": "integer",
+            "title": "Trading Days Held"
+          },
+          "strike": {
+            "type": "number",
+            "title": "Strike"
+          },
+          "nifty_close_at_entry": {
+            "type": "number",
+            "title": "Nifty Close At Entry"
+          },
+          "vix_at_entry": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vix At Entry"
+          },
+          "ce_entry_close": {
+            "type": "number",
+            "title": "Ce Entry Close"
+          },
+          "pe_entry_close": {
+            "type": "number",
+            "title": "Pe Entry Close"
+          },
+          "premium_close_points": {
+            "type": "number",
+            "title": "Premium Close Points"
+          },
+          "premium_fill_points": {
+            "type": "number",
+            "title": "Premium Fill Points"
+          },
+          "lot_size": {
+            "type": "integer",
+            "title": "Lot Size"
+          },
+          "lot_size_source": {
+            "type": "string",
+            "title": "Lot Size Source"
+          },
+          "lots": {
+            "type": "integer",
+            "title": "Lots"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "settlement_level": {
+            "type": "number",
+            "title": "Settlement Level"
+          },
+          "nifty_move_pct": {
+            "type": "number",
+            "title": "Nifty Move Pct"
+          },
+          "ce_value_at_expiry": {
+            "type": "number",
+            "title": "Ce Value At Expiry"
+          },
+          "pe_value_at_expiry": {
+            "type": "number",
+            "title": "Pe Value At Expiry"
+          },
+          "value_at_expiry_points": {
+            "type": "number",
+            "title": "Value At Expiry Points"
+          },
+          "pnl_points_gross": {
+            "type": "number",
+            "title": "Pnl Points Gross"
+          },
+          "pnl_points_net": {
+            "type": "number",
+            "title": "Pnl Points Net"
+          },
+          "pnl_pct_premium_gross": {
+            "type": "number",
+            "title": "Pnl Pct Premium Gross"
+          },
+          "pnl_pct_premium_net": {
+            "type": "number",
+            "title": "Pnl Pct Premium Net"
+          },
+          "pnl_rs_gross": {
+            "type": "number",
+            "title": "Pnl Rs Gross"
+          },
+          "slippage_rs": {
+            "type": "number",
+            "title": "Slippage Rs"
+          },
+          "charges_rs": {
+            "type": "number",
+            "title": "Charges Rs"
+          },
+          "brokerage_rs": {
+            "type": "number",
+            "title": "Brokerage Rs"
+          },
+          "stt_rs": {
+            "type": "number",
+            "title": "Stt Rs"
+          },
+          "exchange_rs": {
+            "type": "number",
+            "title": "Exchange Rs"
+          },
+          "ipft_rs": {
+            "type": "number",
+            "title": "Ipft Rs"
+          },
+          "sebi_rs": {
+            "type": "number",
+            "title": "Sebi Rs"
+          },
+          "stamp_rs": {
+            "type": "number",
+            "title": "Stamp Rs"
+          },
+          "gst_rs": {
+            "type": "number",
+            "title": "Gst Rs"
+          },
+          "pnl_rs_net": {
+            "type": "number",
+            "title": "Pnl Rs Net"
+          },
+          "stale_marks": {
+            "type": "integer",
+            "title": "Stale Marks"
+          },
+          "missing_marks": {
+            "type": "integer",
+            "title": "Missing Marks"
+          },
+          "event_in_window": {
+            "type": "boolean",
+            "title": "Event In Window"
+          },
+          "events": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trade_id",
+          "underlying",
+          "strategy",
+          "entry_date",
+          "expiry",
+          "expiry_weekday",
+          "stated_expiry_on_entry",
+          "relabelled",
+          "calendar_days_to_expiry",
+          "trading_days_held",
+          "strike",
+          "nifty_close_at_entry",
+          "vix_at_entry",
+          "ce_entry_close",
+          "pe_entry_close",
+          "premium_close_points",
+          "premium_fill_points",
+          "lot_size",
+          "lot_size_source",
+          "lots",
+          "quantity",
+          "settlement_level",
+          "nifty_move_pct",
+          "ce_value_at_expiry",
+          "pe_value_at_expiry",
+          "value_at_expiry_points",
+          "pnl_points_gross",
+          "pnl_points_net",
+          "pnl_pct_premium_gross",
+          "pnl_pct_premium_net",
+          "pnl_rs_gross",
+          "slippage_rs",
+          "charges_rs",
+          "brokerage_rs",
+          "stt_rs",
+          "exchange_rs",
+          "ipft_rs",
+          "sebi_rs",
+          "stamp_rs",
+          "gst_rs",
+          "pnl_rs_net",
+          "stale_marks",
+          "missing_marks",
+          "event_in_window",
+          "events"
+        ],
+        "title": "TradeRecord",
+        "description": "One row of trades.csv (M3 trade log, with context columns)."
+      },
+      "TradeStats": {
+        "properties": {
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "wins": {
+            "type": "integer",
+            "title": "Wins"
+          },
+          "losses": {
+            "type": "integer",
+            "title": "Losses"
+          },
+          "zero_pnl": {
+            "type": "integer",
+            "title": "Zero Pnl"
+          },
+          "win_rate": {
+            "type": "number",
+            "title": "Win Rate"
+          },
+          "avg_win_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Win Rs"
+          },
+          "avg_loss_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Loss Rs"
+          },
+          "avg_win_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Win Points"
+          },
+          "avg_loss_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Loss Points"
+          },
+          "avg_win_pct_premium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Win Pct Premium"
+          },
+          "avg_loss_pct_premium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Loss Pct Premium"
+          },
+          "rs": {
+            "$ref": "#/components/schemas/BestWorst"
+          },
+          "points": {
+            "$ref": "#/components/schemas/BestWorst"
+          },
+          "mean_pct_premium_net": {
+            "type": "number",
+            "title": "Mean Pct Premium Net"
+          },
+          "mean_points_net": {
+            "type": "number",
+            "title": "Mean Points Net"
+          },
+          "t_stat_pct_premium_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Stat Pct Premium Net"
+          },
+          "t_stat_points_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Stat Points Net"
+          },
+          "gross_rs": {
+            "type": "number",
+            "title": "Gross Rs"
+          },
+          "slippage_rs": {
+            "type": "number",
+            "title": "Slippage Rs"
+          },
+          "charges_rs": {
+            "type": "number",
+            "title": "Charges Rs"
+          },
+          "net_rs": {
+            "type": "number",
+            "title": "Net Rs"
+          },
+          "charges_by_line_rs": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Charges By Line Rs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trades",
+          "wins",
+          "losses",
+          "zero_pnl",
+          "win_rate",
+          "avg_win_rs",
+          "avg_loss_rs",
+          "avg_win_points",
+          "avg_loss_points",
+          "avg_win_pct_premium",
+          "avg_loss_pct_premium",
+          "rs",
+          "points",
+          "mean_pct_premium_net",
+          "mean_points_net",
+          "t_stat_pct_premium_net",
+          "t_stat_points_net",
+          "gross_rs",
+          "slippage_rs",
+          "charges_rs",
+          "net_rs",
+          "charges_by_line_rs"
+        ],
+        "title": "TradeStats"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "YearRow": {
+        "properties": {
+          "trading_days": {
+            "type": "integer",
+            "title": "Trading Days"
+          },
+          "start_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Equity Rs"
+          },
+          "end_equity_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Equity Rs"
+          },
+          "pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl Rs"
+          },
+          "return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return"
+          },
+          "benchmark_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Return"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "partial_year": {
+            "type": "boolean",
+            "title": "Partial Year"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate"
+          },
+          "net_rs_by_expiry": {
+            "type": "number",
+            "title": "Net Rs By Expiry"
+          },
+          "net_points_by_expiry": {
+            "type": "number",
+            "title": "Net Points By Expiry"
+          },
+          "mean_pct_premium_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Pct Premium Net"
+          },
+          "t_stat_pct_premium_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Stat Pct Premium Net"
+          },
+          "t_stat_points_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Stat Points Net"
+          },
+          "max_drawdown_rs": {
+            "type": "number",
+            "title": "Max Drawdown Rs"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "max_drawdown_lower_bound": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Lower Bound"
+          },
+          "sharpe_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Notional"
+          },
+          "sortino_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortino Notional"
+          },
+          "sharpe_rupee": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Rupee"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trading_days",
+          "start_equity_rs",
+          "end_equity_rs",
+          "pnl_rs",
+          "return",
+          "year",
+          "partial_year",
+          "trades",
+          "win_rate",
+          "net_rs_by_expiry",
+          "net_points_by_expiry",
+          "mean_pct_premium_net",
+          "t_stat_pct_premium_net",
+          "t_stat_points_net",
+          "max_drawdown_rs",
+          "max_drawdown_pct",
+          "sharpe_notional",
+          "sortino_notional",
+          "sharpe_rupee"
+        ],
+        "title": "YearRow"
+      }
+    }
+  }
+}

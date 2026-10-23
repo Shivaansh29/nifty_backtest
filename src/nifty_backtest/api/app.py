@@ -12,6 +12,7 @@ Route functions are plain `def`, not `async def`: they read files and run pandas
 block an async event loop, so FastAPI runs each one in a worker thread instead.
 """
 
+import json
 import threading
 from typing import Annotated, Any
 
@@ -25,6 +26,7 @@ from nifty_backtest import __version__
 from nifty_backtest.api.errors import ApiError
 from nifty_backtest.api.launch import launch
 from nifty_backtest.api.schemas import (
+    DailyPoint,
     EquityPoint,
     ErrorBody,
     Health,
@@ -149,6 +151,12 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     def run_monthly(run_id: RunId) -> list[MonthRow]:
         return store.monthly(run_id)
 
+    @app.get("/api/runs/{run_id}/daily", tags=["results"], responses=_errors(404, 409, 500))
+    def run_daily(run_id: RunId) -> list[DailyPoint]:
+        """Daily net and gross equity, drawdowns and the NIFTY 50 TRI curve (daily.csv), for
+        charts. 409 for runs whose metrics predate daily.csv, with the command that adds it."""
+        return store.daily(run_id)
+
     @app.get("/api/runs/{run_id}/trades", tags=["results"], responses=_errors(404, 422, 500))
     def run_trades(run_id: RunId) -> list[TradeRecord]:
         return store.trades(run_id)
@@ -172,3 +180,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         return store.skipped(run_id)
 
     return app
+
+
+def openapi_json() -> str:
+    """The OpenAPI schema as stable, readable JSON (committed for the frontend, M6)."""
+    return json.dumps(create_app().openapi(), indent=2, ensure_ascii=False) + "\n"

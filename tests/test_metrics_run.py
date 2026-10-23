@@ -30,6 +30,7 @@ from nifty_backtest.metrics.series import (
 from nifty_backtest.metrics.summary import (
     MetricsConfig,
     compute_metrics,
+    daily_table,
     monthly_table,
     series_block,
     write_metrics,
@@ -291,3 +292,57 @@ def test_metrics_json_is_strict_json_with_nulls(cfg: DataConfig, tmp_path: Path)
     assert "final equity missing" in saved["strategy_net"]["totals_note"]
     assert saved["reconciliation"]["final_equity_minus_capital_minus_trade_net"] is None
     assert "checks not possible" in (folder / "summary.md").read_text()
+
+
+# --- daily.csv (M6): the series behind the dashboard charts -------------------------------
+
+
+def test_daily_series_agree_with_the_saved_metrics(cfg: DataConfig, tmp_path: Path) -> None:
+    folder = saved_run(cfg, tmp_path)
+    metrics = write_metrics(folder)
+    daily = pd.read_csv(folder / "daily.csv")
+    assert daily["date"].tolist() == [d.isoformat() for d in (MON, TUE, WED, THU)]
+    # Same curves the metrics use: net equity is equity.csv, gross is rupee_gross, the TRI
+    # curve is 1.4 x NIFTY close, scaled to the capital (25,020 -> 24,900 by Thursday).
+    equity = pd.read_csv(folder / "equity.csv")
+    assert daily["equity_net_rs"].tolist() == equity["equity_rs"].tolist()
+    assert daily["equity_gross_rs"].tolist() == pytest.approx([500_000, 501_500, 502_250, 509_000])
+    assert daily["benchmark_equity_rs"].iloc[-1] == pytest.approx(500_000 * 24900 / 25020)
+    # The worst points of the daily drawdowns are exactly the maximum drawdowns in
+    # metrics.json (computed in memory), and agree to CSV precision (16 significant digits,
+    # like every saved CSV) once written to daily.csv.
+    net, bench = metrics["strategy_net"], metrics["benchmark_nifty50_tri"]
+    exact = daily_table(load_run(folder))
+    assert exact["drawdown_net_rs"].max() == net["max_drawdown_rs"]
+    assert exact["drawdown_net_pct"].max() == net["max_drawdown_pct"]
+    assert exact["benchmark_drawdown_pct"].max() == bench["max_drawdown_pct"]
+    for column, saved in (
+        ("drawdown_net_rs", net["max_drawdown_rs"]),
+        ("drawdown_net_pct", net["max_drawdown_pct"]),
+        ("benchmark_drawdown_pct", bench["max_drawdown_pct"]),
+    ):
+        assert daily[column].max() == pytest.approx(saved, rel=1e-12)
+
+
+def test_daily_series_keep_missing_days_missing(cfg: DataConfig, tmp_path: Path) -> None:
+    folder = saved_run(cfg, tmp_path)
+    equity = pd.read_csv(folder / "equity.csv")
+    equity.loc[equity["date"] == TUE.isoformat(), "equity_rs"] = NAN
+    equity.to_csv(folder / "equity.csv", index=False)
+    daily = daily_table(load_run(folder))
+    tue, wed = daily.iloc[1], daily.iloc[2]
+    assert (tue["date"], wed["date"]) == (TUE, WED)
+    assert pd.isna(tue["equity_net_rs"])
+    assert pd.isna(tue["drawdown_net_rs"])
+    assert not pd.isna(wed["drawdown_net_rs"])
+
+
+def test_daily_benchmark_columns_are_empty_when_the_tri_is_unavailable(
+    cfg: DataConfig, tmp_path: Path
+) -> None:
+    folder = saved_run(cfg, tmp_path)
+    index_path(cfg).unlink()
+    daily = daily_table(load_run(folder))
+    assert daily["benchmark_equity_rs"].isna().all()
+    assert daily["benchmark_drawdown_pct"].isna().all()
+    assert daily["equity_net_rs"].notna().all()
