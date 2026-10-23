@@ -6,6 +6,7 @@ saves it. The API must serve those files unchanged, and refuse broken ones with 
 """
 
 import json
+import re
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -564,13 +565,23 @@ def test_frontend_openapi_schema_is_current() -> None:
     )
 
 
+_DECIMAL = re.compile(r"-?\d+\.\d+(?:[eE][-+]?\d+)?")
+
+
+def _to_12_digits(text: str) -> str:
+    """Every decimal number rounded to 12 significant digits. Reading a CSV float can differ in
+    the last binary digit between platforms (CI's Linux/x86-64 vs a Mac's arm64), which is
+    noise, not a change in what the API sends."""
+    return _DECIMAL.sub(lambda m: f"{float(m.group()):.12g}", text)
+
+
 def test_frontend_fixtures_are_current() -> None:
     # The dashboard tests use responses recorded from this API (tests/frontend_fixtures.py).
-    # Regenerating must give the committed file exactly, so they can never drift from what
-    # the API really sends.
+    # Regenerating must give the committed file: the same keys, strings, structure and
+    # numbers (to 12 significant digits), so the fixtures cannot drift from what the API sends.
     from tests.frontend_fixtures import OUTPUT, build
 
-    assert OUTPUT.read_text(encoding="utf-8") == build(), (
+    assert _to_12_digits(OUTPUT.read_text(encoding="utf-8")) == _to_12_digits(build()), (
         "frontend/src/test/fixtures.ts is out of date: "
         "run `uv run python -m tests.frontend_fixtures`"
     )
