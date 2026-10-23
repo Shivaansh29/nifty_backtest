@@ -118,7 +118,7 @@ def _backtest(args: argparse.Namespace, cfg: DataConfig) -> int:
         from nifty_backtest.metrics.summary import summary_text, write_metrics
 
         print(summary_text(write_metrics(folder)))
-    print(f"run saved to {folder} (metrics.json, yearly.csv, monthly.csv, summary.md)")
+    print(f"run saved to {folder} (metrics.json, yearly.csv, monthly.csv, daily.csv, summary.md)")
     return 0
 
 

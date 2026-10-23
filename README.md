@@ -75,8 +75,8 @@ cd frontend && npm run typecheck && npm test && npm run build
 
 ## Results (v1 baseline: short straddle, hold to expiry)
 
-From run `20261022-191259-short_straddle`:
-- **Code:** commit `371bb22`, clean tree.
+From run `20261024-033815-short_straddle`:
+- **Code:** commit `be47d67`, clean tree.
 - **Data:** 1 Oct 2021 to 16 Oct 2026, 1,251 trading days.
 - **Settings:** ₹5,00,000 capital, 1 lot, entry 3 sessions before expiry, brokerage ₹20/order, slippage 0.5 point per leg.
 
