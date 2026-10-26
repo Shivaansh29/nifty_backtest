@@ -49,7 +49,15 @@ const columns = helper.columns([
   helper.accessor("events", { header: "Events", cell: (c) => c.getValue() ?? "" }),
 ]);
 
-export function TradeTable({ trades, runId }: { trades: TradeRecord[]; runId: string }) {
+export function TradeTable({
+  trades,
+  runId,
+  studyId,
+}: {
+  trades: TradeRecord[];
+  runId: string;
+  studyId?: string;
+}) {
   const table = useTable({
     features,
     columns,
@@ -107,7 +115,7 @@ export function TradeTable({ trades, runId }: { trades: TradeRecord[]; runId: st
                     {cell.column.id === "trade_id" ? (
                       <a
                         className="font-mono text-xs text-indigo-700 underline"
-                        href={href({ page: "trade", runId, tradeId: row.original.trade_id })}
+                        href={href({ page: "trade", runId, tradeId: row.original.trade_id, studyId })}
                       >
                         {row.original.trade_id}
                       </a>

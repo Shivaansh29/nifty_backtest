@@ -1,4 +1,4 @@
-"""Where the API finds runs and market data. Paths are relative to the working directory,
+"""Where the API finds runs, studies and market data. Paths are relative to the working directory,
 like the CLI's, so `nifty-backtest serve` run from the repository sees the same runs/ and
 data/ as `nifty-backtest backtest`."""
 
@@ -14,6 +14,7 @@ from nifty_backtest.marketdata.config import DataConfig
 @dataclass(frozen=True)
 class ApiSettings:
     runs_dir: Path = Path("runs")
+    studies_dir: Path = Path("studies")  # M7 research studies (`nifty-backtest study`)
     # Used only by POST /api/runs: the data a launched run reads, and the dated cost-rate
     # table. Brokerage and slippage come from each request instead.
     data: DataConfig = field(default_factory=DataConfig)

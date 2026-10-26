@@ -2,6 +2,7 @@
 
 Status codes (owner-approved for M5):
   404 run_not_found, trade_not_found, not_found   the thing asked for does not exist
+  404 study_not_found                             (M7) no such study folder
   409 metrics_not_computed                        the run exists but has no metrics yet
   409 run_in_progress, run_exists                 a launch conflicts with another one
   422 invalid_request                             bad id format or bad parameters

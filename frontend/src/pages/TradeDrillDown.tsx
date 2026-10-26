@@ -7,11 +7,21 @@ import { ApiErrorNotice, Loading } from "../components/States";
 import { day, decimal, percentValue, rupees } from "../lib/format";
 import { href, runPath } from "../lib/route";
 
-export function TradeDrillDown({ runId, tradeId }: { runId: string; tradeId: string }) {
-  const detail = useApi<TradeDetail>(runPath(runId, `/trades/${encodeURIComponent(tradeId)}`));
+export function TradeDrillDown({
+  runId,
+  tradeId,
+  studyId,
+}: {
+  runId: string;
+  tradeId: string;
+  studyId?: string;
+}) {
+  const detail = useApi<TradeDetail>(
+    runPath(runId, `/trades/${encodeURIComponent(tradeId)}`, studyId),
+  );
   return (
     <div className="space-y-6">
-      <a className="text-sm text-indigo-700 underline" href={href({ page: "run", runId })}>
+      <a className="text-sm text-indigo-700 underline" href={href({ page: "run", runId, studyId })}>
         ← back to run {runId}
       </a>
       {detail.state === "loading" ? <Loading what="trade" /> : null}
@@ -21,8 +31,16 @@ export function TradeDrillDown({ runId, tradeId }: { runId: string; tradeId: str
   );
 }
 
+const REASONS: Record<string, string> = { stop: "stopped", take_profit: "took profit", expiry: "held to expiry" };
+
+function legExit(reason: string | null | undefined, date: string | null | undefined, price: number | null | undefined): string {
+  if (!reason) return "n/a";
+  return `${REASONS[reason] ?? reason}, ${day(date)} at ${decimal(price)}`;
+}
+
 function TradeView({ detail }: { detail: TradeDetail }) {
   const t = detail.trade;
+  const exited = t.ce_exit_reason != null || t.pe_exit_reason != null;
   const facts: [string, string][] = [
     ["Entry", `${day(t.entry_date)} at NIFTY ${t.nifty_close_at_entry.toLocaleString("en-IN")}`],
     ["Expiry", `${day(t.expiry)} (${t.expiry_weekday})${t.relabelled ? `, re-dated from ${day(t.stated_expiry_on_entry)}` : ""}`],
@@ -31,13 +49,25 @@ function TradeView({ detail }: { detail: TradeDetail }) {
     ["India VIX at entry", decimal(t.vix_at_entry)],
     ["Premium", `CE ${decimal(t.ce_entry_close)} + PE ${decimal(t.pe_entry_close)} = ${decimal(t.premium_close_points)} pts at the close; ${decimal(t.premium_fill_points)} pts filled`],
     ["Settlement", `${t.settlement_level.toLocaleString("en-IN")} (NIFTY move ${percentValue(t.nifty_move_pct)})`],
-    ["Value at expiry", `CE ${decimal(t.ce_value_at_expiry)} + PE ${decimal(t.pe_value_at_expiry)} = ${decimal(t.value_at_expiry_points)} pts`],
+    // With an M7 exit rule, a leg may be bought back before expiry; its "value at expiry"
+    // column then holds its buy-back price, so the row says "at exit" and the exits are listed.
+    ...(exited
+      ? ([
+          ["Exits", `CE ${legExit(t.ce_exit_reason, t.ce_exit_date, t.ce_exit_price)}; PE ${legExit(t.pe_exit_reason, t.pe_exit_date, t.pe_exit_price)}`],
+          ["Value at exit", `CE ${decimal(t.ce_value_at_expiry)} + PE ${decimal(t.pe_value_at_expiry)} = ${decimal(t.value_at_expiry_points)} pts`],
+        ] as [string, string][])
+      : ([
+          ["Value at expiry", `CE ${decimal(t.ce_value_at_expiry)} + PE ${decimal(t.pe_value_at_expiry)} = ${decimal(t.value_at_expiry_points)} pts`],
+        ] as [string, string][])),
     ["Events in window", t.event_in_window ? (t.events ?? "") : "none"],
   ];
   const pnl: [string, string][] = [
     ["Gross P&L", `${rupees(t.pnl_rs_gross)} (${decimal(t.pnl_points_gross)} pts, ${percentValue(t.pnl_pct_premium_gross)} of premium)`],
     ["Slippage", rupees(t.slippage_rs)],
-    ["Charges", rupees(t.charges_rs)],
+    [
+      "Charges",
+      `${rupees(t.charges_rs)}${t.exit_charges_rs ? ` (of which buy-back ${rupees(t.exit_charges_rs)})` : ""}`,
+    ],
     ["Net P&L", `${rupees(t.pnl_rs_net)} (${decimal(t.pnl_points_net)} pts, ${percentValue(t.pnl_pct_premium_net)} of premium)`],
   ];
   const charges: [string, number][] = [

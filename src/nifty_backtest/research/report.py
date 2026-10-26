@@ -49,7 +49,7 @@ def report_markdown(study: dict[str, Any]) -> str:
         f"{plan['forward_holdout']['latest_evaluation']}, whichever comes first.",
         f"- **Statistics:** two-sided paired t-test, Holm across {', '.join(plan['holm_family'])} "
         f"(alpha {plan['alpha']}); 95% percentile bootstrap, {plan['bootstrap_resamples']:,} "
-        f"resamples, seed {plan['seed']}, i.i.d. and moving blocks of {plan['block_length']}; "
+        f"resamples, seed {plan['seed']}, i.i.d. and circular blocks of {plan['block_length']}; "
         "verdicts use the conservative envelope of the two intervals (lower of the lower bounds, "
         "higher of the upper bounds).",
         "- **Unit:** paired differences are in **% of the baseline's premium** for the same "

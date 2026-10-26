@@ -788,6 +788,872 @@
           }
         }
       }
+    },
+    "/api/studies": {
+      "get": {
+        "tags": [
+          "studies"
+        ],
+        "summary": "List Studies",
+        "description": "Every saved study, newest first, with its baseline-edge verdict and the final\nstatus of each pre-registered primary variant. A broken study folder is listed as\n`invalid` with its problem instead of breaking the list.",
+        "operationId": "list_studies_api_studies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StudySummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Studies Api Studies Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}": {
+      "get": {
+        "tags": [
+          "studies"
+        ],
+        "summary": "Study Detail",
+        "description": "study.json as saved: the plan and its fingerprints, the baseline's edge, every\npaired comparison with both bootstrap intervals and their envelope, Holm-adjusted\np-values, the pre-registered verdicts, sensitivity families, cost grid and regime\ntables. Nothing is recomputed.",
+        "operationId": "study_detail_api_studies__study_id__get",
+        "parameters": [
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyFile"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Detail",
+        "description": "Status, full config, manifest (git commit, data fingerprints) and which files the\nrun folder holds.",
+        "operationId": "run_detail_api_studies__study_id__runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/metrics": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Metrics",
+        "description": "metrics.json as saved. 409 if metrics were never computed for this run.",
+        "operationId": "run_metrics_api_studies__study_id__runs__run_id__metrics_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/yearly": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Yearly",
+        "operationId": "run_yearly_api_studies__study_id__runs__run_id__yearly_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/YearRow"
+                  },
+                  "title": "Response Run Yearly Api Studies  Study Id  Runs  Run Id  Yearly Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/monthly": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Monthly",
+        "operationId": "run_monthly_api_studies__study_id__runs__run_id__monthly_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonthRow"
+                  },
+                  "title": "Response Run Monthly Api Studies  Study Id  Runs  Run Id  Monthly Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/daily": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Daily",
+        "description": "Daily net and gross equity, drawdowns and the NIFTY 50 TRI curve (daily.csv), for\ncharts. 409 for runs whose metrics predate daily.csv, with the command that adds it.",
+        "operationId": "run_daily_api_studies__study_id__runs__run_id__daily_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DailyPoint"
+                  },
+                  "title": "Response Run Daily Api Studies  Study Id  Runs  Run Id  Daily Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/trades": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Trades",
+        "operationId": "run_trades_api_studies__study_id__runs__run_id__trades_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TradeRecord"
+                  },
+                  "title": "Response Run Trades Api Studies  Study Id  Runs  Run Id  Trades Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/trades/{trade_id}": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Trade",
+        "description": "One trade with its mark-to-market on every day it was held.",
+        "operationId": "run_trade_api_studies__study_id__runs__run_id__trades__trade_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "trade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "description": "e.g. NIFTY-2025-06-05",
+              "title": "Trade Id"
+            },
+            "description": "e.g. NIFTY-2025-06-05"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/equity": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Equity",
+        "description": "The equity curve exactly as saved in equity.csv (net of costs).",
+        "operationId": "run_equity_api_studies__study_id__runs__run_id__equity_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EquityPoint"
+                  },
+                  "title": "Response Run Equity Api Studies  Study Id  Runs  Run Id  Equity Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/skipped": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Skipped",
+        "operationId": "run_skipped_api_studies__study_id__runs__run_id__skipped_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SkippedWeek"
+                  },
+                  "title": "Response Run Skipped Api Studies  Study Id  Runs  Run Id  Skipped Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1053,6 +1919,597 @@
         ],
         "title": "BestWorst"
       },
+      "ComparisonRow": {
+        "properties": {
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "primary",
+              "sensitivity",
+              "realism",
+              "descriptive"
+            ],
+            "title": "Role"
+          },
+          "of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Of"
+          },
+          "change": {
+            "type": "string",
+            "title": "Change"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "net_pnl_rs": {
+            "type": "number",
+            "title": "Net Pnl Rs"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate"
+          },
+          "gross_pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Pnl Rs"
+          },
+          "roi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roi"
+          },
+          "cagr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cagr"
+          },
+          "max_drawdown_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs"
+          },
+          "sharpe_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Notional"
+          },
+          "sortino_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortino Notional"
+          },
+          "sharpe_rupee": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Rupee"
+          },
+          "sortino_rupee": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortino Rupee"
+          },
+          "tri_roi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tri Roi"
+          },
+          "mean_pct_premium_executed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Pct Premium Executed"
+          },
+          "t_pct_premium_executed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Pct Premium Executed"
+          },
+          "avg_win_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Win Rs"
+          },
+          "avg_loss_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Loss Rs"
+          },
+          "worst_trade_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Trade Rs"
+          },
+          "charges_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charges Rs"
+          },
+          "exit_charges_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Charges Rs"
+          },
+          "stop_exits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Exits"
+          },
+          "take_profit_exits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Profit Exits"
+          },
+          "paired_n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired N"
+          },
+          "paired_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Mean"
+          },
+          "paired_t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired T"
+          },
+          "paired_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired P"
+          },
+          "paired_p_holm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired P Holm"
+          },
+          "paired_ci_iid": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Ci Iid"
+          },
+          "paired_ci_block": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Ci Block"
+          },
+          "paired_ci_conservative": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Ci Conservative"
+          },
+          "paired_lag1_autocorrelation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Lag1 Autocorrelation"
+          },
+          "paired_mean_d_pts": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Mean D Pts"
+          },
+          "paired_executed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Executed"
+          },
+          "paired_scheduled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Scheduled"
+          },
+          "paired_share_traded": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Share Traded"
+          },
+          "paired_extra_variant_trades": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Extra Variant Trades"
+          },
+          "paired_tail5_variant": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Tail5 Variant"
+          },
+          "paired_tail5_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Tail5 Baseline"
+          },
+          "paired_worst_variant": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Worst Variant"
+          },
+          "paired_worst_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Worst Baseline"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variant",
+          "role",
+          "of",
+          "change",
+          "period",
+          "run_id",
+          "trades",
+          "net_pnl_rs",
+          "max_drawdown_pct"
+        ],
+        "title": "ComparisonRow",
+        "description": "One variant in one period: its own run's numbers (from its metrics.json) and, for\nevery variant but the baseline, the paired comparison with the baseline (paired_*, in %\nof the baseline's premium for the same expiry; a skipped week counts as 0 points)."
+      },
+      "CostGridRow": {
+        "properties": {
+          "base": {
+            "type": "string",
+            "title": "Base"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "slippage_points_per_leg": {
+            "type": "number",
+            "title": "Slippage Points Per Leg"
+          },
+          "brokerage_per_order_rs": {
+            "type": "number",
+            "title": "Brokerage Per Order Rs"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "net_pnl_rs": {
+            "type": "number",
+            "title": "Net Pnl Rs"
+          },
+          "mean_pct_premium_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Pct Premium Net"
+          },
+          "t_pct_premium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Pct Premium"
+          },
+          "sharpe_notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe Notional"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base",
+          "period",
+          "slippage_points_per_leg",
+          "brokerage_per_order_rs",
+          "trades",
+          "net_pnl_rs",
+          "mean_pct_premium_net",
+          "t_pct_premium",
+          "sharpe_notional",
+          "max_drawdown_pct",
+          "run_id"
+        ],
+        "title": "CostGridRow"
+      },
       "CostSettings": {
         "properties": {
           "brokerage_per_order_rs": {
@@ -1267,6 +2724,140 @@
         "title": "DataSettings",
         "description": "The data window and paths a run used. Other DataConfig settings (download politeness\nand so on) are passed through as they were saved."
       },
+      "EdgePeriod": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P"
+          },
+          "ci_iid": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Iid"
+          },
+          "ci_block": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Block"
+          },
+          "ci_conservative": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Conservative"
+          },
+          "lag1_autocorrelation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lag1 Autocorrelation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "period",
+          "n",
+          "mean",
+          "t",
+          "p",
+          "ci_iid",
+          "ci_block",
+          "ci_conservative",
+          "lag1_autocorrelation"
+        ],
+        "title": "EdgePeriod",
+        "description": "The baseline's own net % of premium in one period, with both bootstrap intervals and\ntheir conservative envelope (lower of the lower bounds, higher of the upper bounds)."
+      },
       "EntryFilterSettings": {
         "properties": {
           "vix_min": {
@@ -1447,6 +3038,155 @@
         ],
         "title": "ExitRuleSettings",
         "description": "M7 early exits of individual legs, from their daily high/low."
+      },
+      "FamilyRow": {
+        "properties": {
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "setting": {
+            "type": "string",
+            "title": "Setting"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "primary",
+              "sensitivity",
+              "realism",
+              "descriptive"
+            ],
+            "title": "Role"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "mean_d_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean D Pct"
+          },
+          "ci_conservative": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Conservative"
+          },
+          "net_pnl_rs": {
+            "type": "number",
+            "title": "Net Pnl Rs"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "plateau_same_sign": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plateau Same Sign"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "family",
+          "setting",
+          "value",
+          "variant",
+          "role",
+          "period",
+          "mean_d_pct",
+          "ci_conservative",
+          "net_pnl_rs",
+          "trades",
+          "max_drawdown_pct"
+        ],
+        "title": "FamilyRow",
+        "description": "One point of a sensitivity family. Reported in full, never used to choose a setting."
+      },
+      "ForwardHoldout": {
+        "properties": {
+          "first_entry": {
+            "type": "string",
+            "format": "date",
+            "title": "First Entry"
+          },
+          "min_trades": {
+            "type": "integer",
+            "title": "Min Trades"
+          },
+          "latest_evaluation": {
+            "type": "string",
+            "format": "date",
+            "title": "Latest Evaluation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "first_entry",
+          "min_trades",
+          "latest_evaluation"
+        ],
+        "title": "ForwardHoldout"
       },
       "GitState": {
         "properties": {
@@ -1893,6 +3633,47 @@
         ],
         "title": "MonthRow"
       },
+      "PlanFileCommit": {
+        "properties": {
+          "last_commit": {
+            "type": "string",
+            "title": "Last Commit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "last_commit"
+        ],
+        "title": "PlanFileCommit"
+      },
+      "PlanGitState": {
+        "properties": {
+          "head": {
+            "type": "string",
+            "title": "Head"
+          },
+          "files": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PlanFileCommit"
+            },
+            "type": "object",
+            "title": "Files"
+          },
+          "uncommitted_changes": {
+            "type": "boolean",
+            "title": "Uncommitted Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "head",
+          "files",
+          "uncommitted_changes"
+        ],
+        "title": "PlanGitState"
+      },
       "Ratio": {
         "properties": {
           "value": {
@@ -2000,6 +3781,58 @@
         ],
         "title": "Reconciliation",
         "description": "Each check should be ~0; None means it needed a missing value and was not possible."
+      },
+      "RegimeRow": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "grouping": {
+            "type": "string",
+            "title": "Grouping"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "mean_pct_premium_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Pct Premium Net"
+          },
+          "total_net_rs": {
+            "type": "number",
+            "title": "Total Net Rs"
+          },
+          "win_rate": {
+            "type": "number",
+            "title": "Win Rate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "period",
+          "grouping",
+          "group",
+          "trades",
+          "mean_pct_premium_net",
+          "total_net_rs",
+          "win_rate"
+        ],
+        "title": "RegimeRow",
+        "description": "The baseline in one regime group (descriptive only)."
       },
       "RunConfigFile": {
         "properties": {
@@ -2685,6 +4518,531 @@
         ],
         "title": "StrategySettings",
         "description": "Every strategy has a name, entry timing and lot count; its other parameters pass\nthrough as saved, so new strategies need no change here."
+      },
+      "StudyEdge": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/EdgePeriod"
+            },
+            "type": "array",
+            "title": "Periods"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "verdict",
+          "periods"
+        ],
+        "title": "StudyEdge"
+      },
+      "StudyFile": {
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "title": "Study Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/StudyPlanInfo"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/StudyEdge"
+          },
+          "verdicts": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StudyVerdict"
+            },
+            "type": "object",
+            "title": "Verdicts"
+          },
+          "comparison": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "type": "array",
+            "title": "Comparison"
+          },
+          "families": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyRow"
+            },
+            "type": "array",
+            "title": "Families"
+          },
+          "cost_grid": {
+            "items": {
+              "$ref": "#/components/schemas/CostGridRow"
+            },
+            "type": "array",
+            "title": "Cost Grid"
+          },
+          "regimes": {
+            "items": {
+              "$ref": "#/components/schemas/RegimeRow"
+            },
+            "type": "array",
+            "title": "Regimes"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/StudyRunRecord"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "study_id",
+          "created_at",
+          "plan",
+          "edge",
+          "verdicts",
+          "comparison",
+          "families",
+          "cost_grid",
+          "regimes",
+          "runs"
+        ],
+        "title": "StudyFile",
+        "description": "study.json, checked field by field."
+      },
+      "StudyPeriod": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "start",
+          "end"
+        ],
+        "title": "StudyPeriod"
+      },
+      "StudyPlanInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "preregistration_path": {
+            "type": "string",
+            "title": "Preregistration Path"
+          },
+          "preregistration_sha256": {
+            "type": "string",
+            "title": "Preregistration Sha256"
+          },
+          "git": {
+            "$ref": "#/components/schemas/PlanGitState"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/StudyPeriod"
+            },
+            "type": "array",
+            "title": "Periods"
+          },
+          "forward_holdout": {
+            "$ref": "#/components/schemas/ForwardHoldout"
+          },
+          "holm_family": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Holm Family"
+          },
+          "alpha": {
+            "type": "number",
+            "title": "Alpha"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "bootstrap_resamples": {
+            "type": "integer",
+            "title": "Bootstrap Resamples"
+          },
+          "block_length": {
+            "type": "integer",
+            "title": "Block Length"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Thresholds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "sha256",
+          "preregistration_path",
+          "preregistration_sha256",
+          "git",
+          "periods",
+          "forward_holdout",
+          "holm_family",
+          "alpha",
+          "seed",
+          "bootstrap_resamples",
+          "block_length",
+          "thresholds"
+        ],
+        "title": "StudyPlanInfo"
+      },
+      "StudyRunRecord": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "primary",
+              "sensitivity",
+              "realism",
+              "descriptive"
+            ],
+            "title": "Role"
+          },
+          "of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Of"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/StudyVariantSettings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "variant",
+          "role",
+          "of",
+          "period",
+          "run_id",
+          "trades",
+          "skipped",
+          "settings"
+        ],
+        "title": "StudyRunRecord"
+      },
+      "StudySummary": {
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "title": "Study Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "invalid"
+            ],
+            "title": "Status"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "git_head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Head"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/StudyPeriod"
+            },
+            "type": "array",
+            "title": "Periods"
+          },
+          "edge_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edge Verdict"
+          },
+          "statuses": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Statuses"
+          },
+          "run_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "study_id",
+          "status",
+          "problems",
+          "name",
+          "created_at",
+          "git_head",
+          "periods",
+          "edge_verdict",
+          "statuses",
+          "run_count"
+        ],
+        "title": "StudySummary"
+      },
+      "StudyVariantSettings": {
+        "properties": {
+          "entry_days_before_expiry": {
+            "type": "integer",
+            "title": "Entry Days Before Expiry"
+          },
+          "lots": {
+            "type": "integer",
+            "title": "Lots"
+          },
+          "brokerage_per_order_rs": {
+            "type": "number",
+            "title": "Brokerage Per Order Rs"
+          },
+          "slippage_points_per_leg": {
+            "type": "number",
+            "title": "Slippage Points Per Leg"
+          },
+          "capital_rs": {
+            "type": "number",
+            "title": "Capital Rs"
+          },
+          "strike_reference": {
+            "type": "string",
+            "enum": [
+              "entry_close",
+              "previous_close"
+            ],
+            "title": "Strike Reference"
+          },
+          "vix_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vix Min"
+          },
+          "vix_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vix Max"
+          },
+          "adx_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adx Max"
+          },
+          "skip_scheduled_events": {
+            "type": "boolean",
+            "title": "Skip Scheduled Events"
+          },
+          "stop_multiple": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Multiple"
+          },
+          "take_profit_decay": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Profit Decay"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "entry_days_before_expiry",
+          "lots",
+          "brokerage_per_order_rs",
+          "slippage_points_per_leg",
+          "capital_rs",
+          "strike_reference",
+          "vix_min",
+          "vix_max",
+          "adx_max",
+          "skip_scheduled_events",
+          "stop_multiple",
+          "take_profit_decay"
+        ],
+        "title": "StudyVariantSettings",
+        "description": "A variant's full settings: the baseline's plus its one change (study plan)."
+      },
+      "StudyVerdict": {
+        "properties": {
+          "development": {
+            "type": "string",
+            "title": "Development"
+          },
+          "validation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "development",
+          "validation",
+          "status"
+        ],
+        "title": "StudyVerdict"
       },
       "TradeDetail": {
         "properties": {

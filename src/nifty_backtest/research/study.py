@@ -375,8 +375,10 @@ def run_study(
                         "max_drawdown_pct": r["max_drawdown_pct"],
                     }
                 )
+            # The entry-timing family is centred on the baseline itself, whose difference from
+            # itself is 0 by definition: there is no sign to compare, so no plateau check.
             primary = next((i for i, m in enumerate(members) if m.id == name), None)
-            if primary is not None and len(members) > 1:
+            if primary is not None and len(members) > 1 and name != plan.baseline.id:
                 neighbours = [means[i] for i in (primary - 1, primary + 1) if 0 <= i < len(members)]
                 same = all(
                     not math.isnan(n) and math.copysign(1, n) == math.copysign(1, means[primary])

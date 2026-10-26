@@ -1,6 +1,8 @@
 import { LaunchForm } from "./pages/LaunchForm";
 import { RunList } from "./pages/RunList";
 import { RunOverview } from "./pages/RunOverview";
+import { StudyList } from "./pages/StudyList";
+import { StudyPage } from "./pages/StudyPage";
 import { TradeDrillDown } from "./pages/TradeDrillDown";
 import { Notice } from "./components/States";
 import { href, useRoute } from "./lib/route";
@@ -20,15 +22,27 @@ export function App() {
           <a href={href({ page: "launch" })} className="text-sm text-slate-600 hover:text-slate-900">
             New run
           </a>
+          <a href={href({ page: "studies" })} className="text-sm text-slate-600 hover:text-slate-900">
+            Research
+          </a>
         </div>
       </nav>
       <main className="mx-auto max-w-7xl px-4 py-6">
         {route.page === "runs" ? <RunList /> : null}
         {route.page === "launch" ? <LaunchForm /> : null}
-        {route.page === "run" ? <RunOverview key={route.runId} runId={route.runId} /> : null}
-        {route.page === "trade" ? (
-          <TradeDrillDown key={`${route.runId}/${route.tradeId}`} runId={route.runId} tradeId={route.tradeId} />
+        {route.page === "run" ? (
+          <RunOverview key={`${route.studyId}/${route.runId}`} runId={route.runId} studyId={route.studyId} />
         ) : null}
+        {route.page === "trade" ? (
+          <TradeDrillDown
+            key={`${route.studyId}/${route.runId}/${route.tradeId}`}
+            runId={route.runId}
+            tradeId={route.tradeId}
+            studyId={route.studyId}
+          />
+        ) : null}
+        {route.page === "studies" ? <StudyList /> : null}
+        {route.page === "study" ? <StudyPage key={route.studyId} studyId={route.studyId} /> : null}
         {route.page === "not-found" ? (
           <Notice tone="warning" title="Page not found">
             <p>

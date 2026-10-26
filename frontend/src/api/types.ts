@@ -23,3 +23,14 @@ export type DailyPoint = Schemas["DailyPoint"];
 export type SkippedWeek = Schemas["SkippedWeek"];
 export type ErrorBody = Schemas["ErrorBody"];
 export type RunRequest = Schemas["RunRequest"];
+
+// M7 research studies.
+export type StudySummary = Schemas["StudySummary"];
+export type StudyFile = Schemas["StudyFile"];
+export type ComparisonRow = Schemas["ComparisonRow"];
+export type FamilyRow = Schemas["FamilyRow"];
+export type CostGridRow = Schemas["CostGridRow"];
+export type RegimeRow = Schemas["RegimeRow"];
+export type EdgePeriod = Schemas["EdgePeriod"];
+export type StudyVerdict = Schemas["StudyVerdict"];
+export type Interval = NonNullable<ComparisonRow["paired_ci_conservative"]>;

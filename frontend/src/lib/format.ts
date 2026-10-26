@@ -87,3 +87,20 @@ export function month(yearMonth: string): string {
 export function savedAt(localIso: string): string {
   return savedAtFormat.format(new Date(`${localIso}Z`));
 }
+
+/** A difference that is already in percent, with its sign: 2.4 -> "+2.40%". */
+export function signedPercent(value: Maybe): string {
+  if (value == null) return NA;
+  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+/** A confidence interval in percent: [-4.93, 10.31] -> "[-4.93%, +10.31%]". */
+export function interval(value: readonly [number, number] | null | undefined): string {
+  return value ? `[${signedPercent(value[0])}, ${signedPercent(value[1])}]` : NA;
+}
+
+/** A p-value: three decimals, or "< 0.001". */
+export function pValue(value: Maybe): string {
+  if (value == null) return NA;
+  return value < 0.001 ? "< 0.001" : value.toFixed(3);
+}

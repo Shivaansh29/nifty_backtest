@@ -105,10 +105,10 @@ class RunStore:
     def _json(self, run_id: str, name: str, model: type[Model]) -> Model:
         path = self._path(run_id, name)
         try:
-            raw = json.loads(path.read_text(encoding="utf-8"), parse_constant=_reject_constant)
+            raw = json.loads(path.read_text(encoding="utf-8"), parse_constant=reject_constant)
             return model.model_validate(raw)
         except (ValueError, ValidationError) as exc:
-            raise ApiError(500, "artifact_invalid", _explain(name, exc), run_id, name) from exc
+            raise ApiError(500, "artifact_invalid", explain(name, exc), run_id, name) from exc
 
     def _csv(self, run_id: str, name: str, model: type[Model]) -> list[Model]:
         path = self._path(run_id, name)
@@ -119,13 +119,13 @@ class RunStore:
                 return []
             raise ApiError(500, "artifact_invalid", f"{name} is empty", run_id, name) from exc
         except (ValueError, pd.errors.ParserError) as exc:
-            raise ApiError(500, "artifact_invalid", _explain(name, exc), run_id, name) from exc
+            raise ApiError(500, "artifact_invalid", explain(name, exc), run_id, name) from exc
         # Empty cells are read as NaN; in the API they are null.
         records = frame.astype(object).where(frame.notna(), None).to_dict("records")
         try:
             return TypeAdapter(list[model]).validate_python(records)  # type: ignore[valid-type]
         except ValidationError as exc:
-            raise ApiError(500, "artifact_invalid", _explain(name, exc), run_id, name) from exc
+            raise ApiError(500, "artifact_invalid", explain(name, exc), run_id, name) from exc
 
     # --- the run's files ---------------------------------------------------------------
 
@@ -316,12 +316,12 @@ def _headline(metrics: Metrics) -> Headline:
     )
 
 
-def _reject_constant(token: str) -> None:
+def reject_constant(token: str) -> None:
     # json.loads accepts NaN / Infinity by default; a strict JSON file never contains them.
     raise ValueError(f"non-standard JSON value {token}")
 
 
-def _explain(name: str, exc: Exception) -> str:
+def explain(name: str, exc: Exception) -> str:
     """A short description of what is wrong with a file (the first problem found)."""
     if isinstance(exc, ValidationError):
         first = exc.errors()[0]

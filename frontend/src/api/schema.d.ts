@@ -217,6 +217,221 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/studies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Studies
+         * @description Every saved study, newest first, with its baseline-edge verdict and the final
+         *     status of each pre-registered primary variant. A broken study folder is listed as
+         *     `invalid` with its problem instead of breaking the list.
+         */
+        get: operations["list_studies_api_studies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study Detail
+         * @description study.json as saved: the plan and its fingerprints, the baseline's edge, every
+         *     paired comparison with both bootstrap intervals and their envelope, Holm-adjusted
+         *     p-values, the pre-registered verdicts, sensitivity families, cost grid and regime
+         *     tables. Nothing is recomputed.
+         */
+        get: operations["study_detail_api_studies__study_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Detail
+         * @description Status, full config, manifest (git commit, data fingerprints) and which files the
+         *     run folder holds.
+         */
+        get: operations["run_detail_api_studies__study_id__runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Metrics
+         * @description metrics.json as saved. 409 if metrics were never computed for this run.
+         */
+        get: operations["run_metrics_api_studies__study_id__runs__run_id__metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/yearly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run Yearly */
+        get: operations["run_yearly_api_studies__study_id__runs__run_id__yearly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run Monthly */
+        get: operations["run_monthly_api_studies__study_id__runs__run_id__monthly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Daily
+         * @description Daily net and gross equity, drawdowns and the NIFTY 50 TRI curve (daily.csv), for
+         *     charts. 409 for runs whose metrics predate daily.csv, with the command that adds it.
+         */
+        get: operations["run_daily_api_studies__study_id__runs__run_id__daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/trades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run Trades */
+        get: operations["run_trades_api_studies__study_id__runs__run_id__trades_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/trades/{trade_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Trade
+         * @description One trade with its mark-to-market on every day it was held.
+         */
+        get: operations["run_trade_api_studies__study_id__runs__run_id__trades__trade_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/equity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Equity
+         * @description The equity curve exactly as saved in equity.csv (net of costs).
+         */
+        get: operations["run_equity_api_studies__study_id__runs__run_id__equity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/skipped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run Skipped */
+        get: operations["run_skipped_api_studies__study_id__runs__run_id__skipped_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -289,6 +504,143 @@ export interface components {
             worst: number;
             /** Worst Trade */
             worst_trade: string;
+        };
+        /**
+         * ComparisonRow
+         * @description One variant in one period: its own run's numbers (from its metrics.json) and, for
+         *     every variant but the baseline, the paired comparison with the baseline (paired_*, in %
+         *     of the baseline's premium for the same expiry; a skipped week counts as 0 points).
+         */
+        ComparisonRow: {
+            /** Variant */
+            variant: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "baseline" | "primary" | "sensitivity" | "realism" | "descriptive";
+            /** Of */
+            of: string | null;
+            /** Change */
+            change: string;
+            /** Period */
+            period: string;
+            /** Run Id */
+            run_id: string;
+            /** Trades */
+            trades: number;
+            /** Net Pnl Rs */
+            net_pnl_rs: number;
+            /** Max Drawdown Pct */
+            max_drawdown_pct: number;
+            /** Win Rate */
+            win_rate?: number | null;
+            /** Gross Pnl Rs */
+            gross_pnl_rs?: number | null;
+            /** Roi */
+            roi?: number | null;
+            /** Cagr */
+            cagr?: number | null;
+            /** Max Drawdown Rs */
+            max_drawdown_rs?: number | null;
+            /** Sharpe Notional */
+            sharpe_notional?: number | null;
+            /** Sortino Notional */
+            sortino_notional?: number | null;
+            /** Sharpe Rupee */
+            sharpe_rupee?: number | null;
+            /** Sortino Rupee */
+            sortino_rupee?: number | null;
+            /** Tri Roi */
+            tri_roi?: number | null;
+            /** Mean Pct Premium Executed */
+            mean_pct_premium_executed?: number | null;
+            /** T Pct Premium Executed */
+            t_pct_premium_executed?: number | null;
+            /** Avg Win Rs */
+            avg_win_rs?: number | null;
+            /** Avg Loss Rs */
+            avg_loss_rs?: number | null;
+            /** Worst Trade Rs */
+            worst_trade_rs?: number | null;
+            /** Charges Rs */
+            charges_rs?: number | null;
+            /** Exit Charges Rs */
+            exit_charges_rs?: number | null;
+            /** Stop Exits */
+            stop_exits?: number | null;
+            /** Take Profit Exits */
+            take_profit_exits?: number | null;
+            /** Paired N */
+            paired_n?: number | null;
+            /** Paired Mean */
+            paired_mean?: number | null;
+            /** Paired T */
+            paired_t?: number | null;
+            /** Paired P */
+            paired_p?: number | null;
+            /** Paired P Holm */
+            paired_p_holm?: number | null;
+            /** Paired Ci Iid */
+            paired_ci_iid?: [
+                number,
+                number
+            ] | null;
+            /** Paired Ci Block */
+            paired_ci_block?: [
+                number,
+                number
+            ] | null;
+            /** Paired Ci Conservative */
+            paired_ci_conservative?: [
+                number,
+                number
+            ] | null;
+            /** Paired Lag1 Autocorrelation */
+            paired_lag1_autocorrelation?: number | null;
+            /** Paired Mean D Pts */
+            paired_mean_d_pts?: number | null;
+            /** Paired Executed */
+            paired_executed?: number | null;
+            /** Paired Scheduled */
+            paired_scheduled?: number | null;
+            /** Paired Share Traded */
+            paired_share_traded?: number | null;
+            /** Paired Extra Variant Trades */
+            paired_extra_variant_trades?: number | null;
+            /** Paired Tail5 Variant */
+            paired_tail5_variant?: number | null;
+            /** Paired Tail5 Baseline */
+            paired_tail5_baseline?: number | null;
+            /** Paired Worst Variant */
+            paired_worst_variant?: number | null;
+            /** Paired Worst Baseline */
+            paired_worst_baseline?: number | null;
+        };
+        /** CostGridRow */
+        CostGridRow: {
+            /** Base */
+            base: string;
+            /** Period */
+            period: string;
+            /** Slippage Points Per Leg */
+            slippage_points_per_leg: number;
+            /** Brokerage Per Order Rs */
+            brokerage_per_order_rs: number;
+            /** Trades */
+            trades: number;
+            /** Net Pnl Rs */
+            net_pnl_rs: number;
+            /** Mean Pct Premium Net */
+            mean_pct_premium_net: number | null;
+            /** T Pct Premium */
+            t_pct_premium: number | null;
+            /** Sharpe Notional */
+            sharpe_notional: number | null;
+            /** Max Drawdown Pct */
+            max_drawdown_pct: number;
+            /** Run Id */
+            run_id: string;
         };
         /** CostSettings */
         CostSettings: {
@@ -364,6 +716,40 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * EdgePeriod
+         * @description The baseline's own net % of premium in one period, with both bootstrap intervals and
+         *     their conservative envelope (lower of the lower bounds, higher of the upper bounds).
+         */
+        EdgePeriod: {
+            /** Period */
+            period: string;
+            /** N */
+            n: number;
+            /** Mean */
+            mean: number | null;
+            /** T */
+            t: number | null;
+            /** P */
+            p: number | null;
+            /** Ci Iid */
+            ci_iid: [
+                number,
+                number
+            ] | null;
+            /** Ci Block */
+            ci_block: [
+                number,
+                number
+            ] | null;
+            /** Ci Conservative */
+            ci_conservative: [
+                number,
+                number
+            ] | null;
+            /** Lag1 Autocorrelation */
+            lag1_autocorrelation: number | null;
+        };
+        /**
          * EntryFilterSettings
          * @description M7 entry filter (previous-close information only).
          */
@@ -420,6 +806,57 @@ export interface components {
             stop_multiple: number | null;
             /** Take Profit Decay */
             take_profit_decay: number | null;
+        };
+        /**
+         * FamilyRow
+         * @description One point of a sensitivity family. Reported in full, never used to choose a setting.
+         */
+        FamilyRow: {
+            /** Family */
+            family: string;
+            /** Setting */
+            setting: string;
+            /** Value */
+            value: number | string | boolean | null;
+            /** Variant */
+            variant: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "baseline" | "primary" | "sensitivity" | "realism" | "descriptive";
+            /** Period */
+            period: string;
+            /** Mean D Pct */
+            mean_d_pct: number | null;
+            /** Ci Conservative */
+            ci_conservative: [
+                number,
+                number
+            ] | null;
+            /** Net Pnl Rs */
+            net_pnl_rs: number;
+            /** Trades */
+            trades: number;
+            /** Max Drawdown Pct */
+            max_drawdown_pct: number;
+            /** Plateau Same Sign */
+            plateau_same_sign?: boolean | null;
+        };
+        /** ForwardHoldout */
+        ForwardHoldout: {
+            /**
+             * First Entry
+             * Format: date
+             */
+            first_entry: string;
+            /** Min Trades */
+            min_trades: number;
+            /**
+             * Latest Evaluation
+             * Format: date
+             */
+            latest_evaluation: string;
         };
         /** GitState */
         GitState: {
@@ -554,6 +991,22 @@ export interface components {
             /** Month */
             month: string;
         };
+        /** PlanFileCommit */
+        PlanFileCommit: {
+            /** Last Commit */
+            last_commit: string;
+        };
+        /** PlanGitState */
+        PlanGitState: {
+            /** Head */
+            head: string;
+            /** Files */
+            files: {
+                [key: string]: components["schemas"]["PlanFileCommit"];
+            };
+            /** Uncommitted Changes */
+            uncommitted_changes: boolean;
+        };
         /** Ratio */
         Ratio: {
             /** Value */
@@ -578,6 +1031,26 @@ export interface components {
             monthly_pnl_minus_total: number | null;
             /** Notional Daily Sum Minus Trade Sum */
             notional_daily_sum_minus_trade_sum: number | null;
+        };
+        /**
+         * RegimeRow
+         * @description The baseline in one regime group (descriptive only).
+         */
+        RegimeRow: {
+            /** Period */
+            period: string;
+            /** Grouping */
+            grouping: string;
+            /** Group */
+            group: string;
+            /** Trades */
+            trades: number;
+            /** Mean Pct Premium Net */
+            mean_pct_premium_net: number | null;
+            /** Total Net Rs */
+            total_net_rs: number;
+            /** Win Rate */
+            win_rate: number;
         };
         /** RunConfigFile */
         RunConfigFile: {
@@ -783,6 +1256,181 @@ export interface components {
             lots: number;
         } & {
             [key: string]: unknown;
+        };
+        /** StudyEdge */
+        StudyEdge: {
+            /** Verdict */
+            verdict: string;
+            /** Periods */
+            periods: components["schemas"]["EdgePeriod"][];
+        };
+        /**
+         * StudyFile
+         * @description study.json, checked field by field.
+         */
+        StudyFile: {
+            /** Study Id */
+            study_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            plan: components["schemas"]["StudyPlanInfo"];
+            edge: components["schemas"]["StudyEdge"];
+            /** Verdicts */
+            verdicts: {
+                [key: string]: components["schemas"]["StudyVerdict"];
+            };
+            /** Comparison */
+            comparison: components["schemas"]["ComparisonRow"][];
+            /** Families */
+            families: components["schemas"]["FamilyRow"][];
+            /** Cost Grid */
+            cost_grid: components["schemas"]["CostGridRow"][];
+            /** Regimes */
+            regimes: components["schemas"]["RegimeRow"][];
+            /** Runs */
+            runs: components["schemas"]["StudyRunRecord"][];
+        };
+        /** StudyPeriod */
+        StudyPeriod: {
+            /** Name */
+            name: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+        };
+        /** StudyPlanInfo */
+        StudyPlanInfo: {
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Sha256 */
+            sha256: string;
+            /** Preregistration Path */
+            preregistration_path: string;
+            /** Preregistration Sha256 */
+            preregistration_sha256: string;
+            git: components["schemas"]["PlanGitState"];
+            /** Periods */
+            periods: components["schemas"]["StudyPeriod"][];
+            forward_holdout: components["schemas"]["ForwardHoldout"];
+            /** Holm Family */
+            holm_family: string[];
+            /** Alpha */
+            alpha: number;
+            /** Seed */
+            seed: number;
+            /** Bootstrap Resamples */
+            bootstrap_resamples: number;
+            /** Block Length */
+            block_length: number;
+            /** Thresholds */
+            thresholds: {
+                [key: string]: number;
+            };
+        };
+        /** StudyRunRecord */
+        StudyRunRecord: {
+            /** Key */
+            key: string;
+            /** Variant */
+            variant: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "baseline" | "primary" | "sensitivity" | "realism" | "descriptive";
+            /** Of */
+            of: string | null;
+            /** Period */
+            period: string;
+            /** Run Id */
+            run_id: string;
+            /** Trades */
+            trades: number;
+            /** Skipped */
+            skipped: number;
+            settings: components["schemas"]["StudyVariantSettings"];
+        };
+        /** StudySummary */
+        StudySummary: {
+            /** Study Id */
+            study_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "invalid";
+            /** Problems */
+            problems: string[];
+            /** Name */
+            name: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Git Head */
+            git_head: string | null;
+            /** Periods */
+            periods: components["schemas"]["StudyPeriod"][];
+            /** Edge Verdict */
+            edge_verdict: string | null;
+            /** Statuses */
+            statuses: {
+                [key: string]: string;
+            };
+            /** Run Count */
+            run_count: number | null;
+        };
+        /**
+         * StudyVariantSettings
+         * @description A variant's full settings: the baseline's plus its one change (study plan).
+         */
+        StudyVariantSettings: {
+            /** Entry Days Before Expiry */
+            entry_days_before_expiry: number;
+            /** Lots */
+            lots: number;
+            /** Brokerage Per Order Rs */
+            brokerage_per_order_rs: number;
+            /** Slippage Points Per Leg */
+            slippage_points_per_leg: number;
+            /** Capital Rs */
+            capital_rs: number;
+            /**
+             * Strike Reference
+             * @enum {string}
+             */
+            strike_reference: "entry_close" | "previous_close";
+            /** Vix Min */
+            vix_min: number | null;
+            /** Vix Max */
+            vix_max: number | null;
+            /** Adx Max */
+            adx_max: number | null;
+            /** Skip Scheduled Events */
+            skip_scheduled_events: boolean;
+            /** Stop Multiple */
+            stop_multiple: number | null;
+            /** Take Profit Decay */
+            take_profit_decay: number | null;
+        };
+        /** StudyVerdict */
+        StudyVerdict: {
+            /** Development */
+            development: string;
+            /** Validation */
+            validation: string | null;
+            /** Status */
+            status: string;
         };
         /**
          * TradeDetail
@@ -1585,6 +2233,582 @@ export interface operations {
             path: {
                 /** @description e.g. 20261022-191259-short_straddle */
                 run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkippedWeek"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    list_studies_api_studies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudySummary"][];
+                };
+            };
+        };
+    };
+    study_detail_api_studies__study_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyFile"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_detail_api_studies__study_id__runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_metrics_api_studies__study_id__runs__run_id__metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Metrics"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_yearly_api_studies__study_id__runs__run_id__yearly_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["YearRow"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_monthly_api_studies__study_id__runs__run_id__monthly_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthRow"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_daily_api_studies__study_id__runs__run_id__daily_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyPoint"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_trades_api_studies__study_id__runs__run_id__trades_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeRecord"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_trade_api_studies__study_id__runs__run_id__trades__trade_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. NIFTY-2025-06-05 */
+                trade_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_equity_api_studies__study_id__runs__run_id__equity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquityPoint"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_skipped_api_studies__study_id__runs__run_id__skipped_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
             };
             cookie?: never;
         };

@@ -21,6 +21,7 @@ import {
   trades,
   yearly,
   yearlyOld,
+  STUDY_ID,
 } from "../test/fixtures";
 import { fail, mockApi, ok, type Routes } from "../test/mockApi";
 import { RunOverview } from "./RunOverview";
@@ -156,5 +157,23 @@ describe("run overview", () => {
     mockApi({});
     render(<RunOverview runId="20990101-000000-short_straddle" />);
     expect(await screen.findByText(/Not found/)).toBeInTheDocument();
+  });
+
+  it("reads a study's run from the study's API paths and links back to the study", async () => {
+    const studyBase = `/api/studies/${STUDY_ID}/runs/${RUN_ID}`;
+    const routes = Object.fromEntries(
+      Object.entries(completeRun()).map(([key, reply]) => [key.replace(`/api/runs/${RUN_ID}`, studyBase), reply]),
+    );
+    const calls = mockApi(routes);
+    render(<RunOverview runId={RUN_ID} studyId={STUDY_ID} />);
+    expect(await screen.findByRole("link", { name: `← back to study ${STUDY_ID}` })).toHaveAttribute(
+      "href",
+      `#/studies/${STUDY_ID}`,
+    );
+    await waitFor(() => expect(calls.length).toBeGreaterThanOrEqual(7));
+    expect(calls.every((c) => c.path.startsWith(studyBase))).toBe(true);
+    const trades = await screen.findByRole("table", { name: /Trades/i });
+    const link = within(trades).getAllByRole("link")[0];
+    expect(link?.getAttribute("href")).toMatch(new RegExp(`^#/studies/${STUDY_ID}/runs/${RUN_ID}/trades/`));
   });
 });

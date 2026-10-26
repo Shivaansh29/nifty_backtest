@@ -385,6 +385,8 @@ def _trade(
         "quantity": quantity,
         "settlement_level": level,
         "nifty_move_pct": (level / spot - 1) * 100,
+        # With an exit rule (M7), a leg bought back early carries its buy-back price here; the
+        # name is kept so the baseline's trade log stays byte-identical (see *_exit_reason).
         "ce_value_at_expiry": leg_values["CE"],
         "pe_value_at_expiry": leg_values["PE"],
         "value_at_expiry_points": value_at_expiry,

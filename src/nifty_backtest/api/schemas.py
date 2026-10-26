@@ -144,6 +144,8 @@ class TradeRecord(Artifact):
     quantity: int
     settlement_level: float
     nifty_move_pct: float
+    # Per unit. For a leg bought back early by an M7 exit rule, its buy-back price (the
+    # *_exit_* columns below say which legs and when).
     ce_value_at_expiry: float
     pe_value_at_expiry: float
     value_at_expiry_points: float
@@ -466,3 +468,252 @@ class RunRequest(BaseModel):
 class Health(BaseModel):
     status: Literal["ok"]
     version: str
+
+
+# --- M7 studies: studies/<study_id>/study.json ---------------------------------------------
+#
+# A study is a pre-registered set of runs (docs/research/m7_preregistration.md). Its
+# study.json holds every comparison, verdict and table, all computed in Python by
+# nifty_backtest.research; the API only checks and serves it. Fields that a row only has in
+# some cases (paired statistics: not on the baseline's own rows; most numbers: not on a run
+# with no trades) are optional and left out of responses when the file lacks them.
+
+Interval = tuple[float, float]
+
+
+class StudyPeriod(Artifact):
+    name: str
+    start: date
+    end: date
+
+
+class ForwardHoldout(Artifact):
+    first_entry: date
+    min_trades: int
+    latest_evaluation: date
+
+
+class PlanFileCommit(Artifact):
+    last_commit: str  # empty if the file was never committed
+
+
+class PlanGitState(Artifact):
+    head: str
+    files: dict[str, PlanFileCommit]
+    uncommitted_changes: bool
+
+
+class StudyPlanInfo(Artifact):
+    name: str
+    path: str
+    sha256: str
+    preregistration_path: str
+    preregistration_sha256: str
+    git: PlanGitState
+    periods: list[StudyPeriod]  # development, then validation (previously observed)
+    forward_holdout: ForwardHoldout
+    holm_family: list[str]
+    alpha: float
+    seed: int
+    bootstrap_resamples: int
+    block_length: int
+    thresholds: dict[str, float]
+
+
+class EdgePeriod(Artifact):
+    """The baseline's own net % of premium in one period, with both bootstrap intervals and
+    their conservative envelope (lower of the lower bounds, higher of the upper bounds)."""
+
+    period: str
+    n: int
+    mean: float | None
+    t: float | None
+    p: float | None
+    ci_iid: Interval | None
+    ci_block: Interval | None
+    ci_conservative: Interval | None
+    lag1_autocorrelation: float | None
+
+
+class StudyEdge(Artifact):
+    verdict: str
+    periods: list[EdgePeriod]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_file_layout(cls, raw: object) -> object:
+        # study.json keys the periods by name next to the verdict:
+        #   {"development": {...}, "validation": {...}, "verdict": "..."}
+        # Here they become a list, so the shape does not depend on the period names. Only
+        # keys move; no value changes.
+        if isinstance(raw, dict) and "periods" not in raw:
+            periods = [
+                {"period": name, **stats} for name, stats in raw.items() if name != "verdict"
+            ]
+            return {"verdict": raw.get("verdict"), "periods": periods}
+        return raw
+
+
+class StudyVerdict(Artifact):
+    development: str
+    validation: str | None  # only for variants promising on development
+    status: str
+
+
+class StudyVariantSettings(Artifact):
+    """A variant's full settings: the baseline's plus its one change (study plan)."""
+
+    entry_days_before_expiry: int
+    lots: int
+    brokerage_per_order_rs: float
+    slippage_points_per_leg: float
+    capital_rs: float
+    strike_reference: Literal["entry_close", "previous_close"]
+    vix_min: float | None
+    vix_max: float | None
+    adx_max: float | None
+    skip_scheduled_events: bool
+    stop_multiple: float | None
+    take_profit_decay: float | None
+
+
+StudyRole = Literal["baseline", "primary", "sensitivity", "realism", "descriptive"]
+
+
+class StudyRunRecord(Artifact):
+    key: str  # the variant id, or e.g. B0@slip1-brk20 for a cost-grid cell
+    variant: str
+    role: StudyRole
+    of: str | None
+    period: str
+    run_id: str  # a run folder in studies/<study_id>/runs/
+    trades: int
+    skipped: int
+    settings: StudyVariantSettings
+
+
+class ComparisonRow(Artifact):
+    """One variant in one period: its own run's numbers (from its metrics.json) and, for
+    every variant but the baseline, the paired comparison with the baseline (paired_*, in %
+    of the baseline's premium for the same expiry; a skipped week counts as 0 points)."""
+
+    variant: str
+    role: StudyRole
+    of: str | None
+    change: str
+    period: str
+    run_id: str
+    trades: int
+    net_pnl_rs: float
+    max_drawdown_pct: float
+    win_rate: float | None = None
+    gross_pnl_rs: float | None = None
+    roi: float | None = None
+    cagr: float | None = None
+    max_drawdown_rs: float | None = None
+    sharpe_notional: float | None = None
+    sortino_notional: float | None = None
+    sharpe_rupee: float | None = None
+    sortino_rupee: float | None = None
+    tri_roi: float | None = None
+    mean_pct_premium_executed: float | None = None
+    t_pct_premium_executed: float | None = None
+    avg_win_rs: float | None = None
+    avg_loss_rs: float | None = None
+    worst_trade_rs: float | None = None
+    charges_rs: float | None = None
+    exit_charges_rs: float | None = None
+    stop_exits: int | None = None
+    take_profit_exits: int | None = None
+    paired_n: int | None = None
+    paired_mean: float | None = None
+    paired_t: float | None = None
+    paired_p: float | None = None
+    paired_p_holm: float | None = None  # primaries only, development only
+    paired_ci_iid: Interval | None = None
+    paired_ci_block: Interval | None = None
+    paired_ci_conservative: Interval | None = None
+    paired_lag1_autocorrelation: float | None = None
+    paired_mean_d_pts: float | None = None
+    paired_executed: int | None = None
+    paired_scheduled: int | None = None
+    paired_share_traded: float | None = None
+    paired_extra_variant_trades: int | None = None
+    paired_tail5_variant: float | None = None
+    paired_tail5_baseline: float | None = None
+    paired_worst_variant: float | None = None
+    paired_worst_baseline: float | None = None
+
+
+class FamilyRow(Artifact):
+    """One point of a sensitivity family. Reported in full, never used to choose a setting."""
+
+    family: str
+    setting: str
+    value: int | float | str | bool | None
+    variant: str
+    role: StudyRole
+    period: str
+    mean_d_pct: float | None
+    ci_conservative: Interval | None
+    net_pnl_rs: float
+    trades: int
+    max_drawdown_pct: float
+    plateau_same_sign: bool | None = None  # absent for the baseline-centred family
+
+
+class CostGridRow(Artifact):
+    base: str
+    period: str
+    slippage_points_per_leg: float
+    brokerage_per_order_rs: float
+    trades: int
+    net_pnl_rs: float
+    mean_pct_premium_net: float | None
+    t_pct_premium: float | None
+    sharpe_notional: float | None
+    max_drawdown_pct: float
+    run_id: str
+
+
+class RegimeRow(Artifact):
+    """The baseline in one regime group (descriptive only)."""
+
+    period: str
+    grouping: str
+    group: str
+    trades: int
+    mean_pct_premium_net: float | None
+    total_net_rs: float
+    win_rate: float
+
+
+class StudyFile(Artifact):
+    """study.json, checked field by field."""
+
+    study_id: str
+    created_at: datetime
+    plan: StudyPlanInfo
+    edge: StudyEdge
+    verdicts: dict[str, StudyVerdict]
+    comparison: list[ComparisonRow]
+    families: list[FamilyRow]
+    cost_grid: list[CostGridRow]
+    regimes: list[RegimeRow]
+    runs: list[StudyRunRecord]
+
+
+StudyStatus = Literal["complete", "invalid"]
+
+
+class StudySummary(BaseModel):
+    study_id: str
+    status: StudyStatus
+    problems: list[str]  # why the study is invalid; empty when complete
+    name: str | None
+    created_at: datetime | None
+    git_head: str | None
+    periods: list[StudyPeriod]
+    edge_verdict: str | None
+    statuses: dict[str, str]  # primary variant -> final status
+    run_count: int | None

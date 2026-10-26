@@ -28,7 +28,15 @@ interface Row {
   strategyOnly?: boolean;
 }
 
-export function HeadlineMetrics({ metrics, runId }: { metrics: Metrics; runId: string }) {
+export function HeadlineMetrics({
+  metrics,
+  runId,
+  studyId,
+}: {
+  metrics: Metrics;
+  runId: string;
+  studyId?: string;
+}) {
   const net = metrics.strategy_net;
   const gross = metrics.strategy_gross;
   const t = metrics.trades;
@@ -179,14 +187,14 @@ export function HeadlineMetrics({ metrics, runId }: { metrics: Metrics; runId: s
             <dt>Best trade</dt>
             <dd className="tabular-nums">
               {rupees(t.rs.best)}{" "}
-              <a className="text-indigo-700 underline" href={href({ page: "trade", runId, tradeId: t.rs.best_trade })}>
+              <a className="text-indigo-700 underline" href={href({ page: "trade", runId, tradeId: t.rs.best_trade, studyId })}>
                 {t.rs.best_trade}
               </a>
             </dd>
             <dt>Worst trade</dt>
             <dd className="tabular-nums">
               {rupees(t.rs.worst)}{" "}
-              <a className="text-indigo-700 underline" href={href({ page: "trade", runId, tradeId: t.rs.worst_trade })}>
+              <a className="text-indigo-700 underline" href={href({ page: "trade", runId, tradeId: t.rs.worst_trade, studyId })}>
                 {t.rs.worst_trade}
               </a>
             </dd>

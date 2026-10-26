@@ -13,6 +13,9 @@ Four runs cover the dashboard's states:
               no daily.csv
   INVALID_ID  trades.csv lacks a column (invalid)
 
+One study (M7) covers the research page: the synthetic study of tests/test_research.py
+(STUDY_ID), with its run ids renumbered.
+
 Things that would differ between machines or runs (run ids, git state, absolute paths, file
 hashes) are replaced with fixed values, so regenerating gives the same file on the same
 platform. Across platforms a float read back from CSV can differ in its last binary digit, so
@@ -45,6 +48,7 @@ from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.metrics.summary import write_metrics
 from nifty_backtest.strategies.short_straddle import ShortStraddle
 from tests.test_engine import THU, setup, week
+from tests.test_research import synthetic_study
 
 OUTPUT = Path(__file__).resolve().parents[1] / "frontend" / "src" / "test" / "fixtures.ts"
 RUN_ID = "20250807-160000-short_straddle"
@@ -52,6 +56,8 @@ MISSING_ID = "20250807-150000-short_straddle"
 OLD_ID = "20250807-140000-short_straddle"
 INVALID_ID = "20250807-130000-short_straddle"
 TRADE_ID = "NIFTY-2025-08-07"
+STUDY_ID = "20250808-120000-test-study"
+V3_RUN_ID = "20250808-110004-short_straddle"  # V3, development: the 5th run the study saves
 FIXED_HASH = "synthetic-fixture"
 FIXED_GIT = {"commit": "0123456789abcdef0123456789abcdef01234567", "uncommitted_changes": False}
 
@@ -121,6 +127,39 @@ def _make_runs(runs_dir: Path) -> Any:
     return run
 
 
+def _make_study(studies_dir: Path) -> None:
+    """Run the synthetic study in its own folder, then give it fixed ids: the study id, and
+    run ids numbered in the order the study ran them."""
+    target = studies_dir.resolve() / STUDY_ID  # before changing directory
+    with tempfile.TemporaryDirectory() as tmp, contextlib.chdir(tmp):
+        built = synthetic_study(DataConfig(data_dir=Path("data")), Path("."))
+        text = (built / "study.json").read_text()
+        renames = {built.name: STUDY_ID}
+        for i, record in enumerate(json.loads(text)["runs"]):
+            renames[record["run_id"]] = f"20250808-1100{i:02d}-short_straddle"
+        for old, new in renames.items():
+            text = text.replace(old, new)
+        study = json.loads(text)
+        study["created_at"] = "2025-08-08T12:00:00"
+        study["plan"]["git"] = {
+            "head": FIXED_GIT["commit"],
+            "files": {
+                name: {"last_commit": FIXED_GIT["commit"]} for name in study["plan"]["git"]["files"]
+            },
+            "uncommitted_changes": False,
+        }
+        (target / "runs").mkdir(parents=True)
+        for old, new in renames.items():
+            if old == built.name:
+                continue
+            run_folder = target / "runs" / new
+            shutil.copytree(built / "runs" / old, run_folder)
+            _fix_manifest(run_folder)  # the run id inside must match the renamed folder
+            if (run_folder / "metrics.json").exists():
+                _edit_json(run_folder / "metrics.json", lambda m, new=new: m.update(run_id=new))
+        (target / "study.json").write_text(json.dumps(study, indent=2))
+
+
 def _error(response: Any) -> dict[str, Any]:
     return {"status": response.status_code, "body": response.json()}
 
@@ -130,8 +169,20 @@ def build() -> str:
     with tempfile.TemporaryDirectory() as tmp, contextlib.chdir(tmp):
         runs_dir = Path("runs")
         run = _make_runs(runs_dir)
-        settings = ApiSettings(runs_dir=runs_dir, data=run.data, costs=run.costs, today=lambda: THU)
+        _make_study(Path("studies"))
+        settings = ApiSettings(
+            runs_dir=runs_dir,
+            studies_dir=Path("studies"),
+            data=run.data,
+            costs=run.costs,
+            today=lambda: THU,
+        )
         client = TestClient(create_app(settings))
+
+        def study(path: str) -> Any:
+            response = client.get(f"/api/studies{path}")
+            assert response.status_code == 200, (path, response.text)
+            return response.json()
 
         def get(path: str) -> Any:
             response = client.get(f"/api/runs{path}")
@@ -190,6 +241,20 @@ def build() -> str:
             ),
             ("errorLaunchNoData", "ErrorFixture", _error(no_data.post("/api/runs", json={}))),
             ("errorLaunchInProgress", "ErrorFixture", in_progress),
+            ("studies", "StudySummary[]", study("")),
+            ("study", "StudyFile", study(f"/{STUDY_ID}")),
+            # The hand-computed stop-loss trade (test_engine_conditions): V3's put is bought
+            # back on Tuesday; net Rs 6,961.04898718125.
+            (
+                "stopTradeDetail",
+                "TradeDetail",
+                study(f"/{STUDY_ID}/runs/{V3_RUN_ID}/trades/{TRADE_ID}"),
+            ),
+            (
+                "errorStudyNotFound",
+                "ErrorFixture",
+                _error(client.get("/api/studies/20990101-000000-none")),
+            ),
         ]
     for name, _, data in fixtures:
         # The synthetic week skips nothing, so "skipped" is legitimately an empty list.
@@ -217,6 +282,8 @@ def build() -> str:
         f'export const OLD_ID = "{OLD_ID}";',
         f'export const INVALID_ID = "{INVALID_ID}";',
         f'export const TRADE_ID = "{TRADE_ID}";',
+        f'export const STUDY_ID = "{STUDY_ID}";',
+        f'export const V3_RUN_ID = "{V3_RUN_ID}";',
     ]
     for name, type_name, data in fixtures:
         lines += ["", f"export const {name}: {type_name} = {json.dumps(data, indent=2)};"]

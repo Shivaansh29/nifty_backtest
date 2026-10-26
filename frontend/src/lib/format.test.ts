@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { day, decimal, fraction, month, NA, percentValue, rupees, savedAt } from "./format";
+import {
+  day,
+  decimal,
+  fraction,
+  interval,
+  month,
+  NA,
+  percentValue,
+  pValue,
+  rupees,
+  savedAt,
+  signedPercent,
+} from "./format";
 
 describe("format", () => {
   it("writes rupees with Indian digit grouping", () => {
@@ -25,5 +37,18 @@ describe("format", () => {
     expect(day("2025-08-04")).toBe("4 Aug 2025");
     expect(month("2025-08")).toBe("Aug 2025");
     expect(savedAt("2025-08-07T16:00:00")).toBe("7 Aug 2025, 16:00");
+  });
+});
+
+describe("study formats", () => {
+  it("writes signed percentages, intervals and p-values", () => {
+    expect(signedPercent(2.431)).toBe("+2.43%");
+    expect(signedPercent(-3.737)).toBe("-3.74%");
+    expect(signedPercent(0)).toBe("0.00%");
+    expect(signedPercent(null)).toBe("n/a");
+    expect(interval([-4.93, 10.31])).toBe("[-4.93%, +10.31%]");
+    expect(interval(null)).toBe("n/a");
+    expect(pValue(0.0997)).toBe("0.100");
+    expect(pValue(0.0004)).toBe("< 0.001");
   });
 });

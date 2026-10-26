@@ -247,25 +247,30 @@ role = "sensitivity"
 of = "V3"
 stop_multiple = 2.0
 
+[[variants]]
+id = "E2"
+role = "descriptive"
+entry_days_before_expiry = 2
+
 [cost_grid]
 slippage_points_per_leg = [0.5, 1.0]
 brokerage_per_order_rs = [20.0]
 """
 
 
-def test_a_study_runs_end_to_end_and_writes_every_output(cfg: DataConfig, tmp_path: Path) -> None:
+def synthetic_study(cfg: DataConfig, tmp_path: Path, refuse_uncommitted: bool = False) -> Path:
+    """Run SMALL_PLAN on the synthetic week (test_engine_conditions) into tmp_path/studies.
+    The plan files are not committed, so the commit check is switched off."""
     run = setup(cfg, tmp_path, week_with_friday(pe_tuesday=(105.0, 126.0, 104.0)))
     write_index(run.data, {FRI: 25060.0, MON: 25020.0, TUE: 25050.0, WED: 25100.0, THU: 24900.0})
     plan = tmp_path / "plan.toml"
     plan.write_text(SMALL_PLAN)
     prereg = tmp_path / "prereg.md"
     prereg.write_text("test pre-registration\n")
-
-    # Not committed: refused.
-    with pytest.raises(StudyError, match="must be committed"):
-        run_study(plan, prereg, run.data, run.costs, tmp_path / "studies", log=lambda _: None)
-
-    folder = run_study(
+    if refuse_uncommitted:
+        with pytest.raises(StudyError, match="must be committed"):
+            run_study(plan, prereg, run.data, run.costs, tmp_path / "studies", log=lambda _: None)
+    return run_study(
         plan,
         prereg,
         run.data,
@@ -274,6 +279,11 @@ def test_a_study_runs_end_to_end_and_writes_every_output(cfg: DataConfig, tmp_pa
         require_committed=False,
         log=lambda _: None,
     )
+
+
+def test_a_study_runs_end_to_end_and_writes_every_output(cfg: DataConfig, tmp_path: Path) -> None:
+    # Plan files that are not committed are refused before anything runs.
+    folder = synthetic_study(cfg, tmp_path, refuse_uncommitted=True)
     for name in (
         "study.json",
         "comparison.csv",
@@ -284,9 +294,9 @@ def test_a_study_runs_end_to_end_and_writes_every_output(cfg: DataConfig, tmp_pa
     ):
         assert (folder / name).exists(), name
     study = json.loads((folder / "study.json").read_text())
-    # 4 variants x 2 periods + 1 extra cost-grid cell x 2 periods = 10 runs, each a run folder.
-    assert len(study["runs"]) == 10
-    assert len(list((folder / "runs").iterdir())) == 10
+    # 5 variants x 2 periods + 1 extra cost-grid cell x 2 periods = 12 runs, each a run folder.
+    assert len(study["runs"]) == 12
+    assert len(list((folder / "runs").iterdir())) == 12
     rows = {(r["variant"], r["period"]): r for r in study["comparison"]}
     # V1a needs VIX >= 16 on Friday (15.0): it skips the week; the pair is -B0's result.
     v1a = rows[("V1a", "development")]
@@ -302,3 +312,10 @@ def test_a_study_runs_end_to_end_and_writes_every_output(cfg: DataConfig, tmp_pa
     assert len(study["plan"]["sha256"]) == 64
     assert len(study["plan"]["preregistration_sha256"]) == 64
     assert "Does the baseline have an edge?" in (folder / "report.md").read_text()
+    # Plateau check: reported for the V3 stop family; not for the entry-timing family, which is
+    # centred on the baseline itself (its difference from itself is 0: no sign to compare).
+    plateau = {(f["family"], f["variant"]): f.get("plateau_same_sign") for f in study["families"]}
+    assert plateau[("V3", "V3")] is not None
+    assert plateau[("B0", "B0")] is None
+    assert plateau[("B0", "E2")] is None
+    assert "circular blocks of 2" in (folder / "report.md").read_text()

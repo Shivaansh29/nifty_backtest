@@ -19,37 +19,45 @@ import { Section } from "../components/MetricCard";
 import { ApiErrorNotice, Loading, Notice, WithCode } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import { day, rupees } from "../lib/format";
-import { runPath } from "../lib/route";
+import { href, runPath } from "../lib/route";
 import { MonthlyHeatmap } from "../tables/MonthlyHeatmap";
 import { TradeTable } from "../tables/TradeTable";
 import { YearlyTable } from "../tables/YearlyTable";
 import { HeadlineMetrics } from "./HeadlineMetrics";
 
-export function RunOverview({ runId }: { runId: string }) {
-  const detail = useApi<RunDetail>(runPath(runId));
+// studyId is set for a run that belongs to a study (served under /api/studies/<id>/runs).
+type RunProps = { runId: string; studyId?: string };
+
+export function RunOverview({ runId, studyId }: RunProps) {
+  const detail = useApi<RunDetail>(runPath(runId, "", studyId));
   if (detail.state === "loading") return <Loading what="run" />;
   if (detail.state === "error") return <ApiErrorNotice error={detail.error} what={runId} />;
   const run = detail.data;
   return (
     <div className="space-y-8">
+      {studyId ? (
+        <a className="text-sm text-indigo-700 underline" href={href({ page: "study", studyId })}>
+          ← back to study {studyId}
+        </a>
+      ) : null}
       <RunHeader run={run} />
       <Section title="Headline results">
-        <MetricsSection runId={runId} />
+        <MetricsSection runId={runId} studyId={studyId} />
       </Section>
       <Section title="Equity and drawdown">
-        <ChartsSection runId={runId} />
+        <ChartsSection runId={runId} studyId={studyId} />
       </Section>
       <Section title="Calendar years">
-        <YearlySection runId={runId} />
+        <YearlySection runId={runId} studyId={studyId} />
       </Section>
       <Section title="Monthly returns">
-        <MonthlySection runId={runId} />
+        <MonthlySection runId={runId} studyId={studyId} />
       </Section>
       <Section title="Trades">
-        <TradesSection runId={runId} />
+        <TradesSection runId={runId} studyId={studyId} />
       </Section>
       <Section title="Skipped weeks">
-        <SkippedSection runId={runId} />
+        <SkippedSection runId={runId} studyId={studyId} />
       </Section>
     </div>
   );
@@ -108,15 +116,15 @@ function RunHeader({ run }: { run: RunDetail }) {
   );
 }
 
-function MetricsSection({ runId }: { runId: string }) {
-  const metrics = useApi<Metrics>(runPath(runId, "/metrics"));
+function MetricsSection({ runId, studyId }: RunProps) {
+  const metrics = useApi<Metrics>(runPath(runId, "/metrics", studyId));
   if (metrics.state === "loading") return <Loading what="metrics" />;
   if (metrics.state === "error") return <ApiErrorNotice error={metrics.error} what="metrics" />;
-  return <HeadlineMetrics metrics={metrics.data} runId={runId} />;
+  return <HeadlineMetrics metrics={metrics.data} runId={runId} studyId={studyId} />;
 }
 
-function ChartsSection({ runId }: { runId: string }) {
-  const daily = useApi<DailyPoint[]>(runPath(runId, "/daily"));
+function ChartsSection({ runId, studyId }: RunProps) {
+  const daily = useApi<DailyPoint[]>(runPath(runId, "/daily", studyId));
   if (daily.state === "loading") return <Loading what="daily series" />;
   if (daily.state === "ok") {
     return (
@@ -130,42 +138,42 @@ function ChartsSection({ runId }: { runId: string }) {
   return (
     <div className="space-y-3">
       <ApiErrorNotice error={daily.error} what="drawdown and NIFTY 50 TRI series" />
-      {daily.error.status === 409 ? <EquityFallback runId={runId} /> : null}
+      {daily.error.status === 409 ? <EquityFallback runId={runId} studyId={studyId} /> : null}
     </div>
   );
 }
 
-function EquityFallback({ runId }: { runId: string }) {
-  const equity = useApi<EquityPoint[]>(runPath(runId, "/equity"));
+function EquityFallback({ runId, studyId }: RunProps) {
+  const equity = useApi<EquityPoint[]>(runPath(runId, "/equity", studyId));
   if (equity.state === "loading") return <Loading what="equity curve" />;
   if (equity.state === "error") return <ApiErrorNotice error={equity.error} what="equity curve" />;
   return <NetEquityChart equity={equity.data} />;
 }
 
-function YearlySection({ runId }: { runId: string }) {
-  const yearly = useApi<YearRow[]>(runPath(runId, "/yearly"));
+function YearlySection({ runId, studyId }: RunProps) {
+  const yearly = useApi<YearRow[]>(runPath(runId, "/yearly", studyId));
   if (yearly.state === "loading") return <Loading what="yearly table" />;
   if (yearly.state === "error") return <ApiErrorNotice error={yearly.error} what="yearly table" />;
   return <YearlyTable rows={yearly.data} />;
 }
 
-function MonthlySection({ runId }: { runId: string }) {
-  const monthly = useApi<MonthRow[]>(runPath(runId, "/monthly"));
+function MonthlySection({ runId, studyId }: RunProps) {
+  const monthly = useApi<MonthRow[]>(runPath(runId, "/monthly", studyId));
   if (monthly.state === "loading") return <Loading what="monthly returns" />;
   if (monthly.state === "error") return <ApiErrorNotice error={monthly.error} what="monthly returns" />;
   return <MonthlyHeatmap rows={monthly.data} />;
 }
 
-function TradesSection({ runId }: { runId: string }) {
-  const trades = useApi<TradeRecord[]>(runPath(runId, "/trades"));
+function TradesSection({ runId, studyId }: RunProps) {
+  const trades = useApi<TradeRecord[]>(runPath(runId, "/trades", studyId));
   if (trades.state === "loading") return <Loading what="trades" />;
   if (trades.state === "error") return <ApiErrorNotice error={trades.error} what="trades" />;
   if (trades.data.length === 0) return <Notice tone="info" title="No trades in this run" />;
-  return <TradeTable trades={trades.data} runId={runId} />;
+  return <TradeTable trades={trades.data} runId={runId} studyId={studyId} />;
 }
 
-function SkippedSection({ runId }: { runId: string }) {
-  const skipped = useApi<SkippedWeek[]>(runPath(runId, "/skipped"));
+function SkippedSection({ runId, studyId }: RunProps) {
+  const skipped = useApi<SkippedWeek[]>(runPath(runId, "/skipped", studyId));
   if (skipped.state === "loading") return <Loading what="skipped weeks" />;
   if (skipped.state === "error") return <ApiErrorNotice error={skipped.error} what="skipped weeks" />;
   if (skipped.data.length === 0) return <p className="text-sm text-slate-600">No weeks were skipped.</p>;
