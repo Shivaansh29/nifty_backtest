@@ -151,6 +151,18 @@ def _serve(args: argparse.Namespace, cfg: DataConfig) -> int:
     return 0
 
 
+def _study(args: argparse.Namespace, cfg: DataConfig) -> int:
+    from nifty_backtest.costs.model import CostConfig
+    from nifty_backtest.research.study import StudyError, run_study
+
+    try:
+        run_study(args.plan, args.preregistration, cfg, CostConfig(), args.studies_dir)
+    except StudyError as exc:
+        log.error("%s", exc)
+        return 1
+    return 0
+
+
 def _openapi(args: argparse.Namespace, cfg: DataConfig) -> int:
     from nifty_backtest.api.app import openapi_json
 
@@ -219,6 +231,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     serve.add_argument(
         "--runs-dir", type=Path, default=Path("runs"), help="folder of saved runs (default runs)"
     )
+    study = commands.add_parser(
+        "study", help="run a pre-registered research study (M7) into studies/<id>/"
+    )
+    study.add_argument(
+        "plan",
+        type=Path,
+        nargs="?",
+        default=Path("docs/research/m7_plan.toml"),
+        help="the committed study plan (default docs/research/m7_plan.toml)",
+    )
+    study.add_argument(
+        "--preregistration",
+        type=Path,
+        default=Path("docs/research/m7_preregistration.md"),
+        help="the committed pre-registration document",
+    )
+    study.add_argument(
+        "--studies-dir", type=Path, default=Path("studies"), help="output folder (default studies)"
+    )
     openapi = commands.add_parser(
         "openapi", help="write the API's OpenAPI schema (the frontend's types come from it)"
     )
@@ -255,6 +286,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "openapi": _openapi,
         "report": _report,
         "serve": _serve,
+        "study": _study,
         "sql": _sql,
     }
     return handlers[args.command](args, cfg)

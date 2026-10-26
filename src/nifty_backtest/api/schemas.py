@@ -51,11 +51,32 @@ class CostSettings(Artifact):
     rates_path: str
 
 
+class EntryFilterSettings(Artifact):
+    """M7 entry filter (previous-close information only)."""
+
+    vix_min: float | None
+    vix_max: float | None
+    adx_max: float | None
+    adx_period: int
+    skip_scheduled_events: bool
+
+
+class ExitRuleSettings(Artifact):
+    """M7 early exits of individual legs, from their daily high/low."""
+
+    stop_multiple: float | None
+    take_profit_decay: float | None
+
+
 class RunSettings(Artifact):
     data: DataSettings
     costs: CostSettings
     capital_rs: float
     underlying: str
+    # M7 research conditions. Absent in runs saved before M7; null / "entry_close" = baseline.
+    entry_filter: EntryFilterSettings | None = None
+    exit_rule: ExitRuleSettings | None = None
+    strike_reference: Literal["entry_close", "previous_close"] | None = None
 
 
 class StrategySettings(BaseModel):
@@ -145,6 +166,24 @@ class TradeRecord(Artifact):
     missing_marks: int
     event_in_window: bool
     events: str | None
+    # M7 columns, present only in runs with that research condition switched on.
+    # With an exit rule: how each leg ended ("stop", "take_profit" or "expiry"), when, and at
+    # what price (trigger price, or intrinsic value at expiry).
+    ce_exit_date: date | None = None
+    ce_exit_reason: Literal["stop", "take_profit", "expiry"] | None = None
+    ce_exit_price: float | None = None
+    pe_exit_date: date | None = None
+    pe_exit_reason: Literal["stop", "take_profit", "expiry"] | None = None
+    pe_exit_price: float | None = None
+    exit_charges_rs: float | None = None
+    no_info_days: int | None = None
+    # With an entry filter: the previous-close information the decision used.
+    info_date: date | None = None
+    vix_prev_close: float | None = None
+    adx_prev: float | None = None
+    knowable_events: str | None = None
+    # With strike_reference = previous_close: the NIFTY level that picked the strike.
+    strike_reference_level: float | None = None
 
 
 class MarkRow(Artifact):
@@ -160,6 +199,8 @@ class MarkRow(Artifact):
     mtm_rs_net: float | None
     stale_mark: bool
     missing_mark: bool
+    ce_closed: bool | None = None  # M7 exit rule: leg already bought back by this close
+    pe_closed: bool | None = None
 
 
 class EquityPoint(Artifact):

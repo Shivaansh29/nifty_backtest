@@ -1267,6 +1267,62 @@
         "title": "DataSettings",
         "description": "The data window and paths a run used. Other DataConfig settings (download politeness\nand so on) are passed through as they were saved."
       },
+      "EntryFilterSettings": {
+        "properties": {
+          "vix_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vix Min"
+          },
+          "vix_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vix Max"
+          },
+          "adx_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adx Max"
+          },
+          "adx_period": {
+            "type": "integer",
+            "title": "Adx Period"
+          },
+          "skip_scheduled_events": {
+            "type": "boolean",
+            "title": "Skip Scheduled Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "vix_min",
+          "vix_max",
+          "adx_max",
+          "adx_period",
+          "skip_scheduled_events"
+        ],
+        "title": "EntryFilterSettings",
+        "description": "M7 entry filter (previous-close information only)."
+      },
       "EquityPoint": {
         "properties": {
           "date": {
@@ -1357,6 +1413,40 @@
         ],
         "title": "ErrorBody",
         "description": "Every error response has this shape."
+      },
+      "ExitRuleSettings": {
+        "properties": {
+          "stop_multiple": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Multiple"
+          },
+          "take_profit_decay": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Profit Decay"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stop_multiple",
+          "take_profit_decay"
+        ],
+        "title": "ExitRuleSettings",
+        "description": "M7 early exits of individual legs, from their daily high/low."
       },
       "GitState": {
         "properties": {
@@ -1593,6 +1683,28 @@
           "missing_mark": {
             "type": "boolean",
             "title": "Missing Mark"
+          },
+          "ce_closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ce Closed"
+          },
+          "pe_closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pe Closed"
           }
         },
         "additionalProperties": false,
@@ -2135,6 +2247,41 @@
           "underlying": {
             "type": "string",
             "title": "Underlying"
+          },
+          "entry_filter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EntryFilterSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exit_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExitRuleSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strike_reference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "entry_close",
+                  "previous_close"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strike Reference"
           }
         },
         "additionalProperties": false,
@@ -2758,6 +2905,162 @@
               }
             ],
             "title": "Events"
+          },
+          "ce_exit_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ce Exit Date"
+          },
+          "ce_exit_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "take_profit",
+                  "expiry"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ce Exit Reason"
+          },
+          "ce_exit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ce Exit Price"
+          },
+          "pe_exit_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pe Exit Date"
+          },
+          "pe_exit_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "take_profit",
+                  "expiry"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pe Exit Reason"
+          },
+          "pe_exit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pe Exit Price"
+          },
+          "exit_charges_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Charges Rs"
+          },
+          "no_info_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Info Days"
+          },
+          "info_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Date"
+          },
+          "vix_prev_close": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vix Prev Close"
+          },
+          "adx_prev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adx Prev"
+          },
+          "knowable_events": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowable Events"
+          },
+          "strike_reference_level": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strike Reference Level"
           }
         },
         "additionalProperties": false,

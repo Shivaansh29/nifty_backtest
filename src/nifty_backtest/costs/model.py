@@ -13,6 +13,8 @@ What a short option position pays:
     brokerage (flat per order), STT on the premium (seller pays), NSE transaction charge,
     NSE IPFT contribution, SEBI fee, and 18% GST on brokerage + transaction charge + SEBI fee.
     No stamp duty: it is charged to the buyer only.
+  on an early buy-back (M7 stop-loss / take-profit), one buy order per leg:
+    brokerage, NSE transaction charge, IPFT, SEBI fee, stamp duty (buyer) and GST. No STT.
   at expiry (cash settlement, no order is placed):
     no brokerage and no STT (STT on exercise is payable by the purchaser, i.e. the option
     holder). If the short leg expires in the money it is assigned, and SEBI's fee also applies
@@ -117,6 +119,25 @@ def option_sale_charges(table: RateTable, cfg: CostConfig, on: date, premium_rs:
         exchange=exchange,
         ipft=table.rate("ipft", "option_trade", on) * premium_rs,
         sebi=sebi,
+        gst=table.rate("gst", "services", on) * (brokerage + exchange + sebi),
+    )
+
+
+def option_purchase_charges(
+    table: RateTable, cfg: CostConfig, on: date, premium_rs: float
+) -> Charges:
+    """Charges for ONE buy order of an option (M7: buying back a short leg before expiry),
+    `premium_rs` = fill price x quantity. The buyer pays stamp duty; there is no STT on a
+    purchase (option STT is on the sale, and on exercise for the holder)."""
+    brokerage = cfg.brokerage_per_order_rs
+    exchange = table.rate("exchange_txn", "option_trade", on) * premium_rs
+    sebi = table.rate("sebi_fee", "option_trade", on) * premium_rs
+    return Charges(
+        brokerage=brokerage,
+        exchange=exchange,
+        ipft=table.rate("ipft", "option_trade", on) * premium_rs,
+        sebi=sebi,
+        stamp=table.rate("stamp_duty", "option_purchase", on) * premium_rs,
         gst=table.rate("gst", "services", on) * (brokerage + exchange + sebi),
     )
 

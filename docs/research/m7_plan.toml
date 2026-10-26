@@ -1,0 +1,192 @@
+# M7 study plan (machine-readable twin of m7_preregistration.md).
+# The study runner executes exactly this file. It records the git commit and SHA-256 of this
+# file and of the pre-registration, and refuses to run if either has uncommitted changes.
+
+[study]
+name = "m7-short-straddle-robustness"
+seed = 20261026
+bootstrap_resamples = 10000
+block_length = 4                 # moving-block bootstrap, consecutive expiries
+alpha = 0.05
+holm_family = ["V1a", "V1b", "V2", "V3", "V4", "V5"]
+
+[periods.development]
+start = "2021-10-01"
+end = "2024-09-30"
+
+[periods.validation]             # historical validation (previously observed), NOT untouched
+start = "2024-10-01"
+end = "2026-10-16"
+
+[forward_holdout]                # untouched; evaluated once, see the pre-registration §9
+first_entry = "2026-10-17"
+min_trades = 52
+latest_evaluation = "2028-01-31"
+
+[baseline]                       # B0: the M6 reference configuration
+entry_days_before_expiry = 3
+lots = 1
+brokerage_per_order_rs = 20.0
+slippage_points_per_leg = 0.5
+capital_rs = 500000.0
+reference_run = "20261024-033815-short_straddle"
+
+[thresholds]                     # fitted on development VIX closes only (744 days), no P&L used
+vix_p25 = 12.6337
+vix_p33 = 13.3683
+vix_p50 = 14.8550
+vix_p67 = 16.8808
+
+# Every entry changes exactly ONE thing: from the baseline, or (with `of`) from the variant it
+# is a sensitivity point of. `role`:
+#   primary      in the Holm family, gets a verdict
+#   sensitivity  reported in full, never used to choose a setting
+#   realism      a check on the baseline's own assumptions (B0-R), not an improvement candidate
+#   descriptive  reported only
+
+[[variants]]
+id = "B0"
+role = "baseline"
+
+[[variants]]
+id = "B0-R"
+role = "realism"
+strike_reference = "previous_close"
+
+[[variants]]
+id = "B0-R-slip1"
+role = "realism"
+of = "B0-R"
+strike_reference = "previous_close"
+slippage_points_per_leg = 1.0
+
+[[variants]]
+id = "B0-R-slip2"
+role = "realism"
+of = "B0-R"
+strike_reference = "previous_close"
+slippage_points_per_leg = 2.0
+
+[[variants]]
+id = "V1a"
+role = "primary"
+vix_min = 13.3683
+
+[[variants]]
+id = "V1a-p25"
+role = "sensitivity"
+of = "V1a"
+vix_min = 12.6337
+
+[[variants]]
+id = "V1a-p50"
+role = "sensitivity"
+of = "V1a"
+vix_min = 14.8550
+
+[[variants]]
+id = "V1b"
+role = "primary"
+vix_max = 16.8808
+
+[[variants]]
+id = "V2"
+role = "primary"
+skip_scheduled_events = true
+
+[[variants]]
+id = "V3"
+role = "primary"
+stop_multiple = 2.0
+
+[[variants]]
+id = "V3-k1.5"
+role = "sensitivity"
+of = "V3"
+stop_multiple = 1.5
+
+[[variants]]
+id = "V3-k2.5"
+role = "sensitivity"
+of = "V3"
+stop_multiple = 2.5
+
+[[variants]]
+id = "V3-k3"
+role = "sensitivity"
+of = "V3"
+stop_multiple = 3.0
+
+[[variants]]
+id = "V3-slip1"
+role = "sensitivity"
+of = "V3"
+stop_multiple = 2.0
+slippage_points_per_leg = 1.0
+
+[[variants]]
+id = "V3-slip2"
+role = "sensitivity"
+of = "V3"
+stop_multiple = 2.0
+slippage_points_per_leg = 2.0
+
+[[variants]]
+id = "V4"
+role = "primary"
+take_profit_decay = 0.5
+
+[[variants]]
+id = "V4-d0.3"
+role = "sensitivity"
+of = "V4"
+take_profit_decay = 0.3
+
+[[variants]]
+id = "V4-d0.7"
+role = "sensitivity"
+of = "V4"
+take_profit_decay = 0.7
+
+[[variants]]
+id = "V5"
+role = "primary"
+adx_max = 25.0
+
+[[variants]]
+id = "V5-20"
+role = "sensitivity"
+of = "V5"
+adx_max = 20.0
+
+[[variants]]
+id = "V5-30"
+role = "sensitivity"
+of = "V5"
+adx_max = 30.0
+
+[[variants]]
+id = "E1"
+role = "descriptive"
+entry_days_before_expiry = 1
+
+[[variants]]
+id = "E2"
+role = "descriptive"
+entry_days_before_expiry = 2
+
+[[variants]]
+id = "E4"
+role = "descriptive"
+entry_days_before_expiry = 4
+
+[[variants]]
+id = "E5"
+role = "descriptive"
+entry_days_before_expiry = 5
+
+# Cost grid: slippage x brokerage, run for B0 and for every primary variant the
+# pre-registered rule marks "promising on development" (decided by the rule, not by eye).
+[cost_grid]
+slippage_points_per_leg = [0.0, 0.5, 1.0, 2.0]
+brokerage_per_order_rs = [0.0, 20.0, 40.0]

@@ -19,6 +19,7 @@ htmlcov/
 # happens to share a name is not ignored by accident.
 /data/
 /runs/
+/studies/
 /reports/
 
 # Frontend (from M6)

@@ -89,3 +89,19 @@ def write_events(directory: Path, rows: list[tuple[str, str]]) -> None:
     lines = ["date,type,description,source,source_url"]
     lines += [f"{d},{k},test event,test source,https://example.invalid" for d, k in rows]
     (directory / "events.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_scheduled_events(directory: Path, rows: list[tuple[str, str, bool, str, str]]) -> None:
+    """A reference/events.csv with M7 columns: (date, type, known_in_advance, announced_on,
+    originally_scheduled) rows."""
+    directory.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "date,type,description,source,source_url,known_in_advance,announced_on,"
+        "originally_scheduled,announcement_source,announcement_url"
+    ]
+    lines += [
+        f"{d},{k},test event,test source,https://example.invalid,{str(known).lower()},{a},{o},"
+        "test announcement,https://example.invalid"
+        for d, k, known, a, o in rows
+    ]
+    (directory / "events.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")

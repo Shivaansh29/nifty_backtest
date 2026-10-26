@@ -364,6 +364,22 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * EntryFilterSettings
+         * @description M7 entry filter (previous-close information only).
+         */
+        EntryFilterSettings: {
+            /** Vix Min */
+            vix_min: number | null;
+            /** Vix Max */
+            vix_max: number | null;
+            /** Adx Max */
+            adx_max: number | null;
+            /** Adx Period */
+            adx_period: number;
+            /** Skip Scheduled Events */
+            skip_scheduled_events: boolean;
+        };
+        /**
          * EquityPoint
          * @description Account value at one close (equity.csv). A run with no trades saves only date and
          *     equity, so the other two columns are optional.
@@ -394,6 +410,16 @@ export interface components {
             run_id?: string | null;
             /** Artifact */
             artifact?: string | null;
+        };
+        /**
+         * ExitRuleSettings
+         * @description M7 early exits of individual legs, from their daily high/low.
+         */
+        ExitRuleSettings: {
+            /** Stop Multiple */
+            stop_multiple: number | null;
+            /** Take Profit Decay */
+            take_profit_decay: number | null;
         };
         /** GitState */
         GitState: {
@@ -477,6 +503,10 @@ export interface components {
             stale_mark: boolean;
             /** Missing Mark */
             missing_mark: boolean;
+            /** Ce Closed */
+            ce_closed?: boolean | null;
+            /** Pe Closed */
+            pe_closed?: boolean | null;
         };
         /**
          * Metrics
@@ -641,6 +671,10 @@ export interface components {
             capital_rs: number;
             /** Underlying */
             underlying: string;
+            entry_filter?: components["schemas"]["EntryFilterSettings"] | null;
+            exit_rule?: components["schemas"]["ExitRuleSettings"] | null;
+            /** Strike Reference */
+            strike_reference?: ("entry_close" | "previous_close") | null;
         };
         /** RunSummary */
         RunSummary: {
@@ -863,6 +897,32 @@ export interface components {
             event_in_window: boolean;
             /** Events */
             events: string | null;
+            /** Ce Exit Date */
+            ce_exit_date?: string | null;
+            /** Ce Exit Reason */
+            ce_exit_reason?: ("stop" | "take_profit" | "expiry") | null;
+            /** Ce Exit Price */
+            ce_exit_price?: number | null;
+            /** Pe Exit Date */
+            pe_exit_date?: string | null;
+            /** Pe Exit Reason */
+            pe_exit_reason?: ("stop" | "take_profit" | "expiry") | null;
+            /** Pe Exit Price */
+            pe_exit_price?: number | null;
+            /** Exit Charges Rs */
+            exit_charges_rs?: number | null;
+            /** No Info Days */
+            no_info_days?: number | null;
+            /** Info Date */
+            info_date?: string | null;
+            /** Vix Prev Close */
+            vix_prev_close?: number | null;
+            /** Adx Prev */
+            adx_prev?: number | null;
+            /** Knowable Events */
+            knowable_events?: string | null;
+            /** Strike Reference Level */
+            strike_reference_level?: number | null;
         };
         /** TradeStats */
         TradeStats: {

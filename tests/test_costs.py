@@ -8,6 +8,7 @@ import pytest
 from nifty_backtest.costs.model import (
     CostConfig,
     RateTable,
+    option_purchase_charges,
     option_sale_charges,
     short_expiry_charges,
 )
@@ -93,3 +94,23 @@ def test_duplicate_start_dates_are_rejected(tmp_path: Path) -> None:
 def test_no_rate_before_the_first_row_is_an_error() -> None:
     with pytest.raises(LookupError):
         TABLE.rate("stt", "option_sale", date(2020, 1, 1))
+
+
+def test_buy_back_charges_hand_computed_5_aug_2025() -> None:
+    # M7: buying back a short leg at 239.00 x 75 = Rs 17,925 on 5 Aug 2025.
+    # Rates in force: NSE 0.03503%, IPFT Rs 50/crore (0.0005%), SEBI Rs 10/crore (0.0001%),
+    # stamp duty 0.003% (buyer), GST 18%; brokerage Rs 20. No STT on a purchase.
+    #   exchange 17,925 x 0.0003503     = 6.2791275
+    #   ipft     17,925 x 0.000005      = 0.089625
+    #   sebi     17,925 x 0.000001      = 0.017925
+    #   stamp    17,925 x 0.00003       = 0.53775
+    #   gst      0.18 x (20 + 6.2791275 + 0.017925) = 4.73346945
+    #   total    = 31.65789695
+    c = option_purchase_charges(TABLE, CFG, date(2025, 8, 5), 17_925.0)
+    assert (c.brokerage, c.stt) == (20.0, 0.0)
+    assert c.exchange == pytest.approx(6.2791275)
+    assert c.ipft == pytest.approx(0.089625)
+    assert c.sebi == pytest.approx(0.017925)
+    assert c.stamp == pytest.approx(0.53775)
+    assert c.gst == pytest.approx(4.73346945)
+    assert c.total == pytest.approx(31.65789695)

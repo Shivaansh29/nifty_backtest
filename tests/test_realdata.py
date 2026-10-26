@@ -298,3 +298,29 @@ def test_api_serves_every_saved_run() -> None:
         assert served == saved
         trades = client.get(f"/api/runs/{run['run_id']}/trades").json()
         assert sum(t["pnl_rs_net"] for t in trades) == pytest.approx(served["trades"]["net_rs"])
+
+
+def test_b0_baseline_reproduces_the_reference_run_byte_for_byte(real_cfg: DataConfig) -> None:
+    """M7 regression: with the research conditions available but off, the engine must still
+    produce the M6 reference run's trade, mark, equity and skipped files exactly."""
+    import json
+    from dataclasses import replace
+
+    from nifty_backtest.engine.backtest import RunConfig, run_backtest
+    from nifty_backtest.strategies.short_straddle import ShortStraddle
+
+    reference = REPO_RUNS / "20261024-033815-short_straddle"
+    if not reference.is_dir():
+        pytest.skip("reference run 20261024-033815-short_straddle not present")
+    saved = json.loads((reference / "config.json").read_text())["run"]["data"]
+    data = replace(
+        real_cfg, start=date.fromisoformat(saved["start"]), end=date.fromisoformat(saved["end"])
+    )
+    result = run_backtest(RunConfig(data=data), ShortStraddle())
+    for name, frame in (
+        ("trades.csv", result.trades),
+        ("marks.csv", result.marks),
+        ("equity.csv", result.equity),
+        ("skipped.csv", result.skipped),
+    ):
+        assert frame.to_csv(index=False) == (reference / name).read_text(), name

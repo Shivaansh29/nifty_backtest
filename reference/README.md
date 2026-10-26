@@ -17,4 +17,4 @@ never committed), everything here is tracked in git and reviewed like code.
 | `lot_sizes_legacy.csv` | M2 | NIFTY lot size by trade-date range before UDiFF data starts (Oct 2021 – Dec 2023) |
 | `special_sessions.csv` | M2 | Every weekend/holiday session in the window, and whether it was short (Muhurat, DR drills) |
 | `cost_rates.csv` | M3 | STT, NSE transaction charges, IPFT, SEBI fees, stamp duty and GST, each with an effective-from date |
-| `events.csv` | M3 | 32 RBI policy decisions, 6 Union Budgets and the 2024 election result |
+| `events.csv` | M3, M7 | 32 RBI policy decisions, 6 Union Budgets and the 2024 election result. M7 added when each date became public (`known_in_advance`, `announced_on`, `originally_scheduled` for rescheduled meetings) with its primary source; only the off-cycle RBI meeting of 4 May 2022 was not known in advance |

@@ -117,7 +117,12 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         response.headers["Location"] = f"/api/runs/{summary.run_id}"
         return summary
 
-    @app.get("/api/runs/{run_id}", tags=["runs"], responses=_errors(404, 422, 500))
+    @app.get(
+        "/api/runs/{run_id}",
+        tags=["runs"],
+        responses=_errors(404, 422, 500),
+        response_model_exclude_unset=True,  # config keys a run's file lacks are left out
+    )
     def run_detail(run_id: RunId) -> RunDetail:
         """Status, full config, manifest (git commit, data fingerprints) and which files the
         run folder holds."""
@@ -157,7 +162,12 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         charts. 409 for runs whose metrics predate daily.csv, with the command that adds it."""
         return store.daily(run_id)
 
-    @app.get("/api/runs/{run_id}/trades", tags=["results"], responses=_errors(404, 422, 500))
+    @app.get(
+        "/api/runs/{run_id}/trades",
+        tags=["results"],
+        responses=_errors(404, 422, 500),
+        response_model_exclude_unset=True,  # M7 columns only when the run has them
+    )
     def run_trades(run_id: RunId) -> list[TradeRecord]:
         return store.trades(run_id)
 
@@ -165,6 +175,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         "/api/runs/{run_id}/trades/{trade_id}",
         tags=["results"],
         responses=_errors(404, 422, 500),
+        response_model_exclude_unset=True,
     )
     def run_trade(run_id: RunId, trade_id: TradeId) -> TradeDetail:
         """One trade with its mark-to-market on every day it was held."""

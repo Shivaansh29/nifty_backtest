@@ -144,7 +144,10 @@ export const detail: RunDetail = {
         "rates_path": "reference/cost_rates.csv"
       },
       "capital_rs": 500000.0,
-      "underlying": "NIFTY"
+      "underlying": "NIFTY",
+      "entry_filter": null,
+      "exit_rule": null,
+      "strike_reference": "entry_close"
     },
     "strategy": {
       "name": "short_straddle",
@@ -223,7 +226,10 @@ export const detailMetricsMissing: RunDetail = {
         "rates_path": "reference/cost_rates.csv"
       },
       "capital_rs": 500000.0,
-      "underlying": "NIFTY"
+      "underlying": "NIFTY",
+      "entry_filter": null,
+      "exit_rule": null,
+      "strike_reference": "entry_close"
     },
     "strategy": {
       "name": "short_straddle",
@@ -309,7 +315,10 @@ export const detailOld: RunDetail = {
         "rates_path": "reference/cost_rates.csv"
       },
       "capital_rs": 500000.0,
-      "underlying": "NIFTY"
+      "underlying": "NIFTY",
+      "entry_filter": null,
+      "exit_rule": null,
+      "strike_reference": "entry_close"
     },
     "strategy": {
       "name": "short_straddle",
