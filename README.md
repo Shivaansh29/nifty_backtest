@@ -41,6 +41,7 @@ uv run nifty-backtest report           # data-quality report -> reports/data_qua
 uv run nifty-backtest backtest         # short straddle -> runs/<run_id>/ (trades, marks, equity, metrics)
 uv run nifty-backtest metrics runs/<run_id>   # recompute metrics for a saved run
 uv run nifty-backtest sql "SELECT count(*) FROM options"   # query with DuckDB
+uv run nifty-backtest study            # the pre-registered M7 study -> studies/<study_id>/ (about an hour)
 uv run nifty-backtest serve            # REST API on http://127.0.0.1:8000 (docs at /docs)
 ```
 
@@ -70,7 +71,7 @@ cd frontend && npm run typecheck && npm test && npm run build
 | M4 | Metrics and reports | done |
 | M5 | FastAPI backend | done |
 | M6 | React dashboard | done |
-| M7 | Conditions and robustness, one at a time, out-of-sample | planned |
+| M7 | Conditions and robustness: pre-registered study, one change at a time | done (forward holdout pending) |
 | M8 | Docker, polish, screenshots | planned |
 
 ## Results (v1 baseline: short straddle, hold to expiry)
@@ -102,6 +103,27 @@ From run `20261024-033815-short_straddle`:
   margin actually used would be higher.
 
 Full methodology, per-year table and limitations: [`docs/milestones/M4.md`](docs/milestones/M4.md).
+
+## Research: does any condition help? (M7)
+
+A pre-registered study tested six conditions, one at a time, against this baseline:
+VIX floor, VIX ceiling, skipping weeks with a known scheduled event, a 2× stop-loss, a 50%
+take-profit, and an ADX trend filter. The plan, periods, statistics and decision rules were
+committed ([`docs/research/m7_preregistration.md`](docs/research/m7_preregistration.md)) before
+any variant ran on real data.
+
+- **The baseline's edge is not demonstrated.** Its mean net result is +2.69% of premium per
+  trade in development (Oct 2021 – Sep 2024) and +7.11% in validation (Oct 2024 – Oct 2026),
+  but both 95% intervals include zero.
+- **All six conditions are inconclusive.** None reaches a Holm-adjusted p below 0.05. The
+  stop-loss cut the development drawdown from 22.26% to 8.78% without a measurable change in
+  the mean.
+- **Nothing is confirmed.** The validation period had already been seen in M4, so it can only
+  reject. A forward holdout (entries from 17 Oct 2026, evaluated once) is the only way to
+  confirm a result.
+
+Results, checks and limitations: [`docs/milestones/M7.md`](docs/milestones/M7.md). The dashboard
+shows the full study at `#/studies`.
 
 ## How results are measured
 
@@ -154,6 +176,9 @@ documentation, generated from the code, is at http://127.0.0.1:8000/docs.
 | `GET /api/runs/{run_id}/skipped` | weeks not traded, with the reason |
 | `GET /api/runs/{run_id}/daily` | daily net and gross equity, drawdowns and the NIFTY 50 TRI curve, for charts (M6) |
 | `POST /api/runs` | run a backtest with parameters and save it, exactly like `nifty-backtest backtest` |
+| `GET /api/studies` | every saved research study with its verdicts (M7) |
+| `GET /api/studies/{study_id}` | one study's `study.json`: plan, paired statistics, Holm p-values, verdicts, families, cost grid, regimes |
+| `GET /api/studies/{study_id}/runs/{run_id}/...` | a study's runs, through the same endpoints as `/api/runs/{run_id}/...` |
 
 ```bash
 curl -s http://127.0.0.1:8000/api/runs
@@ -172,7 +197,7 @@ How the API behaves:
 
   | Status | When |
   |---|---|
-  | 404 | the run or trade doesn't exist |
+  | 404 | the run, trade or study doesn't exist |
   | 409 | metrics were never computed, or a launch conflicts with another |
   | 422 | invalid parameters or run id |
   | 500 | a saved file is broken, or a launched run failed |
@@ -193,6 +218,9 @@ The dashboard (`frontend/`) is a React + TypeScript app that reads everything fr
   - a sortable, searchable trade table.
 - **Trade page:** one trade's facts, costs and daily marks.
 - **New run:** a form that launches a backtest through `POST /api/runs`.
+- **Research (M7):** each study's plan, the baseline's edge, the pre-registered verdicts with
+  their intervals, every run side by side, sensitivity families, a cost-grid heatmap and regime
+  tables. Every run links to the ordinary run and trade pages.
 
 It does no financial calculation: every number is the API's, and the browser only formats,
 sorts and lays it out. Its TypeScript types are generated from the API's OpenAPI schema
@@ -215,12 +243,14 @@ src/nifty_backtest/     Python package: cli.py plus one sub-package per module
   engine/               positions, daily marks, expiry settlement, trade log (M3)
   costs/                brokerage, taxes, exchange fees, slippage (M3)
   metrics/              P&L, drawdown, Sharpe/Sortino, t-statistics, benchmark (M4)
-  api/                  FastAPI backend: reads and checks run folders, launches runs (M5)
+  api/                  FastAPI backend: reads and checks run and study folders, launches runs (M5, M7)
+  research/             pre-registered studies: plan, paired statistics, verdicts, reports (M7)
 tests/                  pytest suite
 reference/              hand-maintained, sourced reference files (tracked)
 frontend/               React + TypeScript dashboard: Vite, Tailwind, Recharts, TanStack Table (M6)
 docs/milestones/        notes for each milestone
-data/ runs/ reports/    downloaded data, saved runs, generated reports (not in git)
+docs/research/          M7 pre-registration and study plan
+data/ runs/ studies/ reports/   downloaded data, saved runs and studies, reports (not in git)
 ```
 
 ## Tech stack
