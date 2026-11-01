@@ -18,7 +18,6 @@ The validation period ends where the plan says (16 Oct 2026), so newer data is n
 import hashlib
 import json
 import math
-import subprocess
 import time
 from collections.abc import Callable
 from datetime import date, datetime
@@ -29,7 +28,7 @@ import pandas as pd
 
 from nifty_backtest.costs.model import CostConfig
 from nifty_backtest.engine.backtest import run_backtest
-from nifty_backtest.engine.runs import save_run
+from nifty_backtest.engine.runs import git_output, save_run
 from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.marketdata.events import knowable_events_between, load_events
 from nifty_backtest.marketdata.indicators import previous_session
@@ -58,19 +57,20 @@ def _sha256(path: Path) -> str:
 
 
 def _git(*args: str) -> str:
-    return subprocess.run(
-        ["git", *args], capture_output=True, text=True, check=False
-    ).stdout.strip()
+    # "" when git is unavailable (e.g. inside the Docker image, M8); run_study then refuses.
+    return git_output(*args) or ""
 
 
 def plan_git_state(paths: list[Path]) -> dict[str, Any]:
-    """HEAD, the commit that last changed each file, and whether any has uncommitted edits."""
+    """HEAD, the commit that last changed each file, and whether any has uncommitted edits.
+    Without git nothing shows the files are unchanged, so they count as changed."""
+    status = git_output("status", "--porcelain", "--", *map(str, paths))
     return {
         "head": _git("rev-parse", "HEAD"),
         "files": {
             str(p): {"last_commit": _git("log", "-1", "--format=%H", "--", str(p))} for p in paths
         },
-        "uncommitted_changes": bool(_git("status", "--porcelain", "--", *map(str, paths))),
+        "uncommitted_changes": status is None or bool(status),
     }
 
 
@@ -253,6 +253,11 @@ def run_study(
 ) -> Path:
     plan = load_plan(plan_path)
     git = plan_git_state([plan_path, preregistration_path])
+    if require_committed and not git["head"]:
+        raise StudyError(
+            "git is not available here (or this is not a git checkout), so the plan cannot be "
+            "shown to be committed: run studies from a git checkout, not inside the Docker image"
+        )
     if require_committed and (
         git["uncommitted_changes"] or not all(f["last_commit"] for f in git["files"].values())
     ):

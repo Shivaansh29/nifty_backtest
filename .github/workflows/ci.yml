@@ -78,3 +78,32 @@ jobs:
 
       - name: Build
         run: npx vite build
+
+  docker:
+    name: Docker checks
+    # Builds both images from scratch and tests the running compose stack (M8): health,
+    # localhost-only port, non-root users, read-only filesystems, images without data, the
+    # dashboard and API through nginx, a launched run identical to the same run outside
+    # Docker, and that run surviving a full restart. ubuntu-24.04 ships Docker and Compose,
+    # so no extra action is needed.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.24"
+
+      # The tests drive Docker from pytest and compare against the API run outside Docker.
+      - name: Install dependencies exactly as locked
+        run: uv sync --locked
+
+      - name: Docker versions
+        run: docker version && docker compose version
+
+      # The tests bake this checkout's commit into the images (GIT_COMMIT / GIT_DIRTY) and
+      # check that a run launched in the container records it.
+      - name: Build, start and test the compose stack
+        env:
+          NIFTY_DOCKER_TESTS: "1"
+        run: uv run pytest tests/test_docker.py

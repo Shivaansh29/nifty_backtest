@@ -1,0 +1,13 @@
+# Build context of the API image (M8). An allow-list: everything is excluded, then only what
+# the image needs is let back in. Market data, saved runs and studies, reports, .git, .env,
+# virtual environments and caches can therefore never be copied into an image, even by
+# accident. They reach the running container only as bind mounts (compose.yaml).
+*
+!pyproject.toml
+!uv.lock
+!.python-version
+!README.md
+!LICENSE
+!src/
+!reference/
+**/__pycache__

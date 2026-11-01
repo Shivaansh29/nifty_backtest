@@ -209,3 +209,10 @@ then BANKNIFTY.
   changed existing contracts mid-life); expiries can be re-dated, so the calendar maps stated to
   actual expiries and entry stays 3 trading days before the actual expiry; skip a week only if
   its lot size cannot be determined.
+- 2026-10-28, before M8, approved by the owner: unprivileged nginx (pinned by version and
+  digest) serves the dashboard image and proxies `/api` and the API docs to the API image;
+  only the dashboard port is published, on 127.0.0.1, and the API publishes none. CI gains a
+  `docker` job that builds both images and tests the running stack. Provenance without git:
+  runs record the commit baked into the image at build time; if neither git nor a baked-in
+  commit is available, they record commit `unknown` with uncommitted changes, never a clean
+  state. Studies need git and run on the host only.

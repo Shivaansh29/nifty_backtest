@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from nifty_backtest.costs.model import CostConfig
 from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.research.analysis import (
     CONSISTENT,
@@ -23,7 +24,7 @@ from nifty_backtest.research.analysis import (
     validation_verdict,
 )
 from nifty_backtest.research.plan import PlanError, load_plan, run_config
-from nifty_backtest.research.study import StudyError, run_study
+from nifty_backtest.research.study import StudyError, plan_git_state, run_study
 from tests.helpers import write_index
 from tests.test_engine import MON, THU, TUE, WED, setup
 from tests.test_engine_conditions import FRI, week_with_friday
@@ -279,6 +280,21 @@ def synthetic_study(cfg: DataConfig, tmp_path: Path, refuse_uncommitted: bool = 
         require_committed=False,
         log=lambda _: None,
     )
+
+
+def test_a_study_refuses_to_run_without_git(
+    cfg: DataConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Inside the Docker image (M8) there is no git, so nothing can show the plan is committed.
+    plan = tmp_path / "plan.toml"
+    plan.write_text(SMALL_PLAN)
+    prereg = tmp_path / "prereg.md"
+    prereg.write_text("test pre-registration\n")
+    monkeypatch.setenv("PATH", "")
+    assert plan_git_state([plan, prereg])["uncommitted_changes"] is True
+    with pytest.raises(StudyError, match="git is not available"):
+        run_study(plan, prereg, cfg, CostConfig(), tmp_path / "studies", log=lambda _: None)
+    assert not (tmp_path / "studies").exists()
 
 
 def test_a_study_runs_end_to_end_and_writes_every_output(cfg: DataConfig, tmp_path: Path) -> None:

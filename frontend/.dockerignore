@@ -1,0 +1,11 @@
+# Build context of the dashboard image (M8). An allow-list, like the API's: node_modules and
+# dist are rebuilt inside the image from package-lock.json, never copied from this computer.
+*
+!package.json
+!package-lock.json
+!.nvmrc
+!index.html
+!tsconfig.json
+!vite.config.ts
+!src/
+!nginx.conf

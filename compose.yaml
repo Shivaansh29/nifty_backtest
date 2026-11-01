@@ -1,0 +1,107 @@
+# Packaged local deployment (M8): the API and the dashboard, started with one command.
+#
+#   docker compose up -d --build --wait     build both images and start them
+#   open http://127.0.0.1:8080               dashboard; API docs at http://127.0.0.1:8080/docs
+#   docker compose down                      stop and remove the containers (your files stay)
+#
+# Market data, saved runs and studies stay in folders on this computer and are bind-mounted
+# into the API container; nothing is copied into an image. Optional settings (ports, folders,
+# user ids) go in a .env file next to this one: see .env.example.
+#
+# There is NO authentication. The dashboard port is bound to 127.0.0.1 so only this computer
+# can reach it, and the API publishes no port at all. Do not change either to expose it.
+
+name: nifty-backtest
+
+# Restrictions shared by both containers: the root filesystem is read-only (only /tmp, a
+# memory-backed tmpfs, and the runs/ mount are writable), every Linux capability is dropped,
+# and no process can gain privileges (e.g. through setuid binaries).
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *hardening
+    build:
+      context: .
+      args:
+        # The commit the image is built from, recorded in runs it launches (README, "Run
+        # with Docker"). Empty means "unknown", recorded as possibly uncommitted.
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        GIT_DIRTY: ${GIT_DIRTY:-}
+    user: "${NIFTY_UID:-1000}:${NIFTY_GID:-1000}"
+    environment:
+      # Run ids are local timestamps (e.g. 20261101-093243). Containers default to UTC, so
+      # this sets the clock the host CLI uses for India, keeping host and container runs in
+      # one runs/ folder in time order. It changes only run ids, never any result.
+      TZ: ${NIFTY_TZ:-Asia/Kolkata}
+    tmpfs:
+      - /tmp:size=256m
+    # The working directory is /app, so these are the same relative paths (data/, runs/,
+    # studies/) that the CLI uses on this computer: a run saved here opens on the host too.
+    # create_host_path: false makes a missing folder an error instead of an empty folder
+    # silently created by Docker as root.
+    volumes:
+      - type: bind
+        source: ${NIFTY_DATA_DIR:-./data}/processed
+        target: /app/data/processed
+        read_only: true # launches read the stored data; nothing may change the cache
+        bind: { create_host_path: false }
+      - type: bind
+        source: ${NIFTY_RUNS_DIR:-./runs}
+        target: /app/runs # launched runs are written here and persist on this computer
+        bind: { create_host_path: false }
+      - type: bind
+        source: ${NIFTY_STUDIES_DIR:-./studies}
+        target: /app/studies
+        read_only: true # the API only reads studies; `nifty-backtest study` runs on the host
+        bind: { create_host_path: false }
+    # No `ports:` on purpose: reachable only from the web container, on the compose network.
+    expose: ["8000"]
+    healthcheck:
+      # The slim Python image has no curl, so Python itself asks /api/health.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 1s
+    deploy:
+      resources:
+        limits:
+          # One uvicorn worker on purpose: the "one launch at a time" lock (api/app.py) lives
+          # in that process's memory, so a second worker would allow two launches at once.
+          cpus: "2"
+          memory: 2g
+          pids: 128
+
+  web:
+    <<: *hardening
+    build: ./frontend
+    tmpfs:
+      - /tmp:size=64m # nginx's pid file and proxy buffers
+    ports:
+      - "127.0.0.1:${NIFTY_WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 128m
+          pids: 64

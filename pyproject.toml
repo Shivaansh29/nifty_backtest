@@ -65,7 +65,10 @@ addopts = ["-ra", "--import-mode=importlib"]
 # share tests/helpers.py.
 pythonpath = ["."]
 # Tests marked realdata read the local NSE cache in data/ and skip when it is absent.
-markers = ["realdata: needs the local NSE data cache in data/ (skipped in CI)"]
+markers = [
+    "realdata: needs the local NSE data cache in data/ (skipped in CI)",
+    "docker: builds and starts the compose stack (M8); runs only with NIFTY_DOCKER_TESTS=1",
+]
 # FastAPI's TestClient is Starlette's, which warns that it would prefer the `httpx2` package
 # to `httpx`. That only concerns the test transport, and httpx2 is not an approved
 # dependency, so this one warning is silenced; revisit when upgrading FastAPI.

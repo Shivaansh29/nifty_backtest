@@ -160,6 +160,65 @@ def test_saving_from_a_dirty_tree_warns(
     assert "uncommitted changes" in caplog.text
 
 
+# --- Provenance without git (M8): the Docker image has no git and no .git folder.
+
+
+def test_a_git_checkout_records_its_commit() -> None:
+    state = runs._git_state()
+    assert len(str(state["commit"])) == 40  # this test suite runs from a git checkout
+    assert isinstance(state["uncommitted_changes"], bool)
+
+
+@pytest.mark.parametrize(
+    ("commit", "dirty", "expected"),
+    [
+        # Only a baked-in commit with an explicit "false" counts as clean.
+        ("abc1234", "false", {"commit": "abc1234", "uncommitted_changes": False}),
+        ("abc1234", "FALSE", {"commit": "abc1234", "uncommitted_changes": False}),
+        ("abc1234", "true", {"commit": "abc1234", "uncommitted_changes": True}),
+        ("abc1234", None, {"commit": "abc1234", "uncommitted_changes": True}),
+        # No commit means unknown provenance, whatever the dirty flag says.
+        (None, "false", {"commit": "unknown", "uncommitted_changes": True}),
+        (None, None, {"commit": "unknown", "uncommitted_changes": True}),
+    ],
+)
+def test_without_git_the_baked_in_commit_is_used(
+    monkeypatch: pytest.MonkeyPatch,
+    commit: str | None,
+    dirty: str | None,
+    expected: dict[str, object],
+) -> None:
+    monkeypatch.setenv("PATH", "")  # no git executable, as in the Docker image
+    for name, value in (("NIFTY_GIT_COMMIT", commit), ("NIFTY_GIT_DIRTY", dirty)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    assert runs.git_output("rev-parse", "HEAD") is None
+    assert runs._git_state() == expected
+
+
+def test_outside_a_git_checkout_the_baked_in_commit_is_used(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # git is installed but this folder is not a checkout: before M8 this recorded commit ""
+    # and "no uncommitted changes", which looked clean.
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    monkeypatch.delenv("NIFTY_GIT_COMMIT", raising=False)
+    assert runs._git_state() == {"commit": "unknown", "uncommitted_changes": True}
+
+
+def test_a_run_saved_without_git_is_never_marked_clean(
+    cfg: DataConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.delenv("NIFTY_GIT_COMMIT", raising=False)
+    folder = saved_run(cfg, tmp_path)
+    manifest = json.loads((folder / "manifest.json").read_text())
+    assert manifest["git"] == {"commit": "unknown", "uncommitted_changes": True}
+
+
 def test_write_metrics_creates_the_files(cfg: DataConfig, tmp_path: Path) -> None:
     folder = saved_run(cfg, tmp_path)
     write_metrics(folder)

@@ -15,12 +15,17 @@ Reproducibility (M4, D6): a run asked for "up to today" (end = None) stores the 
 it used, so re-running the saved config reads exactly the same days; and saving from a working
 tree with uncommitted changes logs a warning, because the recorded commit would not contain
 the code that produced the run.
+
+Provenance without git (M8): the Docker image has neither git nor the .git folder, so it is
+built with the commit it came from (see _baked_git_state). A run whose code version cannot be
+established is recorded as commit "unknown" with uncommitted changes, never as clean.
 """
 
 import dataclasses
 import hashlib
 import json
 import logging
+import os
 import subprocess
 from datetime import date, datetime
 from pathlib import Path
@@ -48,16 +53,37 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _git_state() -> dict[str, object]:
-    def git(*args: str) -> str:
-        return subprocess.run(
-            ["git", *args], capture_output=True, text=True, check=False
-        ).stdout.strip()
+def git_output(*args: str) -> str | None:
+    """git's output, or None when git is not installed or the command failed (for example
+    outside a git checkout)."""
+    try:
+        done = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return None
+    return done.stdout.strip() if done.returncode == 0 else None
 
+
+def _baked_git_state() -> dict[str, object]:
+    """The code version written into the Docker image when it was built (M8).
+
+    The image is built with GIT_COMMIT and GIT_DIRTY build arguments, which it stores as these
+    environment variables. Only an explicit NIFTY_GIT_DIRTY=false counts as clean: a missing or
+    unreadable value means nobody checked, so the run is marked as having uncommitted changes.
+    """
+    commit = os.environ.get("NIFTY_GIT_COMMIT", "").strip()
+    dirty = os.environ.get("NIFTY_GIT_DIRTY", "").strip().lower()
     return {
-        "commit": git("rev-parse", "HEAD"),
-        "uncommitted_changes": bool(git("status", "--porcelain")),
+        "commit": commit or "unknown",
+        "uncommitted_changes": not (commit and dirty == "false"),
     }
+
+
+def _git_state() -> dict[str, object]:
+    commit = git_output("rev-parse", "HEAD")
+    status = git_output("status", "--porcelain")
+    if commit is None or status is None:
+        return _baked_git_state()
+    return {"commit": commit, "uncommitted_changes": bool(status)}
 
 
 def data_manifest(cfg: RunConfig, result: BacktestResult) -> dict[str, object]:

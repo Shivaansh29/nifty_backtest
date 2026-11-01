@@ -6,11 +6,12 @@ Backtests NIFTY 50 index option strategies on real NSE end-of-day data and shows
 an interactive web dashboard. Version 1 tests one strategy, a weekly short straddle, from
 October 2021 to the latest trading day.
 
-> **Status: M6 (dashboard) complete.** The short straddle runs over five years of NSE data
-> (263 weekly trades) with a dated, sourced cost model, and every spec metric is computed
+> **Status: M8 (Docker packaging) complete.** The short straddle runs over five years of NSE
+> data (263 weekly trades) with a dated, sourced cost model, and every spec metric is computed
 > against a NIFTY 50 TRI buy-and-hold benchmark. All numbers below come from one saved,
-> reproducible run. A FastAPI backend serves saved runs and launches new ones, and a React
-> dashboard shows them.
+> reproducible run. A FastAPI backend serves saved runs and launches new ones, a React
+> dashboard shows them, a pre-registered study (M7) tests six conditions, and
+> `docker compose up` starts the API and dashboard on your own computer.
 
 ## Principles
 
@@ -60,6 +61,128 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 cd frontend && npm run typecheck && npm test && npm run build
 ```
 
+## Run with Docker
+
+The packaged version (M8): the API and the dashboard in two containers, started with one
+command. It needs [Docker](https://docs.docker.com/get-docker/) with Compose v2, and runs on
+your own computer only (see "Security" below).
+
+**1. The folders the containers use.** Market data, runs and studies stay on your computer
+and are mounted into the API container; they are never copied into an image. Each folder must
+exist before starting (an empty one is fine):
+
+```bash
+mkdir -p data/processed runs studies
+```
+
+Without data you can still browse saved runs and studies; launching a run then returns
+"no stored option data". Downloading and building the data, and running studies, stay on
+the host (`uv run nifty-backtest download`, `build`, `study`): see Quickstart.
+
+**2. Record the code version (optional, recommended).** The images have no git, so the
+commit is baked in when they are built and recorded in every run launched from them. Without
+these two variables, runs record commit `unknown` with "uncommitted changes".
+
+```bash
+export GIT_COMMIT=$(git rev-parse HEAD)
+export GIT_DIRTY=$([ -z "$(git status --porcelain)" ] && echo false || echo true)
+```
+
+**3. Start, use, stop.**
+
+```bash
+docker compose up -d --build --wait     # build both images, start, wait until healthy
+docker compose ps                       # both services "running (healthy)"
+docker compose logs -f api              # follow the API's log (Ctrl+C to stop following)
+docker compose down                     # stop and remove the containers; your files stay
+```
+
+| What | Where |
+|---|---|
+| Dashboard | http://127.0.0.1:8080 |
+| API documentation (Swagger UI) | http://127.0.0.1:8080/docs (the page loads its scripts from a CDN) |
+| OpenAPI schema | http://127.0.0.1:8080/openapi.json |
+| API | http://127.0.0.1:8080/api/... (e.g. `/api/health`) |
+
+Settings such as the port, the folders, the time zone used in run ids and, on Linux, your user
+id go in a `.env` file: copy [`.env.example`](.env.example).
+
+**Launch time.** A full five-year launch from the dashboard takes under two minutes on the host
+or on Linux. On Docker Desktop for macOS it takes about 4½ minutes, because reading the
+bind-mounted Parquet files through Docker Desktop's file sharing is slower. The results are the
+same: identical trades and equity, and statistics equal to 12 significant digits (measured
+for M8, see [M8 notes](docs/milestones/M8.md)).
+
+**Development vs packaged.** For working on the code, use the Quickstart commands: the API
+with `uv run nifty-backtest serve` and the dashboard with `npm run dev` (hot reload, on ports
+8000 and 5173). The Docker stack is the packaged build of the same code: a production build
+of the dashboard behind nginx, which also forwards `/api` and the API docs to the API
+container. Both setups use relative `/api` URLs, so the browser always talks to one origin.
+
+**How it is put together:**
+- **`api` image** ([`Dockerfile`](Dockerfile)): Python 3.12.15 with exactly the packages in
+  `uv.lock` (no dev tools), the package and `reference/`. One uvicorn worker, because the
+  "one launch at a time" lock lives in that process.
+- **`web` image** ([`frontend/Dockerfile`](frontend/Dockerfile)): the dashboard built with
+  Node 24.14.1 from `package-lock.json`, served by unprivileged nginx 1.30
+  ([`frontend/nginx.conf`](frontend/nginx.conf)).
+- **Pinned:** every base image by version and sha256 digest.
+- **Mounts:** `data/processed` read-only, `studies/` read-only, `runs/` read-write.
+- **Health checks:** the API's `/api/health` and nginx's `/healthz`; the dashboard starts
+  only after the API is healthy.
+- **Limits:** memory, CPU and process limits per container (see [`compose.yaml`](compose.yaml)).
+
+**Security.** There is **no authentication**: anyone who can reach the dashboard can read
+every run and launch new ones. The stack is therefore built for one computer:
+- the dashboard port is bound to **127.0.0.1** only, and the API publishes **no port**
+  (nginx is the only way in);
+- both containers run as non-root users, with a read-only root filesystem, every Linux
+  capability dropped and `no-new-privileges`;
+- no data, runs, studies, `.env` or `.git` can enter an image (the build contexts are
+  allow-lists: [`.dockerignore`](.dockerignore), [`frontend/.dockerignore`](frontend/.dockerignore)).
+
+This is not a hardened public deployment. Do not publish the port on other interfaces, or
+put it behind a public address, without adding authentication, TLS and access control first.
+
+Run the Docker tests (they build the images and start their own stack on port 18080):
+
+```bash
+NIFTY_DOCKER_TESTS=1 uv run pytest tests/test_docker.py
+```
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph host["Your computer"]
+        browser["Browser"]
+        cli["CLI (uv run nifty-backtest)<br/>download, build, backtest, study"]
+        data[("data/processed<br/>Parquet")]
+        runs[("runs/")]
+        studies[("studies/")]
+        ref[("reference/<br/>sourced CSVs")]
+    end
+    subgraph compose["Docker Compose (M8)"]
+        web["web: nginx<br/>dashboard + proxy<br/>127.0.0.1:8080"]
+        api["api: FastAPI<br/>no published port"]
+    end
+    browser -->|"/ and /assets"| web
+    browser -->|"/api, /docs"| web
+    web -->|"proxy"| api
+    api -->|"read-only"| data
+    api -->|"read-write"| runs
+    api -->|"read-only"| studies
+    cli --> data
+    cli --> runs
+    cli --> studies
+    ref -. "copied into the api image" .-> api
+```
+
+Inside the Python package, each step depends only on the ones before it: `marketdata`
+(downloads, Parquet, calendar, lot sizes) → `strategies` and `engine` (positions, settlement,
+trade log) with `costs` → `metrics` → `research` (M7 studies) → `api`. The dashboard only
+calls the API and does no financial calculation.
+
 ## Roadmap
 
 | # | Milestone | Status |
@@ -72,7 +195,7 @@ cd frontend && npm run typecheck && npm test && npm run build
 | M5 | FastAPI backend | done |
 | M6 | React dashboard | done |
 | M7 | Conditions and robustness: pre-registered study, one change at a time | done (forward holdout pending) |
-| M8 | Docker, polish, screenshots | planned |
+| M8 | Docker Compose packaging, Docker CI, architecture diagram, screenshots | done |
 
 ## Results (v1 baseline: short straddle, hold to expiry)
 
@@ -228,6 +351,28 @@ sorts and lays it out. Its TypeScript types are generated from the API's OpenAPI
 out of date. In development, Vite forwards `/api` to the API server, so no CORS setup is
 needed.
 
+### Screenshots
+
+Taken from the Docker stack (M8) on the reference run `20261024-033815-short_straddle` and the
+M7 study. They show derived results only, not the trade table or NSE option prices.
+
+**Run overview:** headline results and the net / gross / NIFTY 50 TRI comparison.
+
+![Run overview: headline results and the net, gross and TRI comparison](docs/images/run-overview.png)
+
+**Equity and drawdown** against NIFTY 50 TRI buy-and-hold from the same capital.
+
+![Equity and drawdown charts](docs/images/equity-drawdown.png)
+
+**Calendar years and monthly returns.**
+
+![Calendar-year table and monthly returns heatmap](docs/images/years-monthly.png)
+
+**Research page (M7):** the baseline's edge and the pre-registered variants with their
+intervals and verdicts.
+
+![Research page: baseline edge and pre-registered variants](docs/images/research.png)
+
 ## Data
 
 Free NSE end-of-day files, downloaded into `data/` on your own machine. That folder is never
@@ -248,8 +393,11 @@ src/nifty_backtest/     Python package: cli.py plus one sub-package per module
 tests/                  pytest suite
 reference/              hand-maintained, sourced reference files (tracked)
 frontend/               React + TypeScript dashboard: Vite, Tailwind, Recharts, TanStack Table (M6)
+  Dockerfile nginx.conf   the dashboard image: production build behind nginx (M8)
+Dockerfile compose.yaml   the API image and the two-service stack (M8); settings in .env.example
 docs/milestones/        notes for each milestone
 docs/research/          M7 pre-registration and study plan
+docs/images/            README screenshots (M8)
 data/ runs/ studies/ reports/   downloaded data, saved runs and studies, reports (not in git)
 ```
 
@@ -257,7 +405,7 @@ data/ runs/ studies/ reports/   downloaded data, saved runs and studies, reports
 
 Python 3.12 · uv · pandas · numpy · Parquet + DuckDB · FastAPI + Pydantic · React + TypeScript +
 Vite · Tailwind CSS · Recharts · TanStack Table · pytest · Vitest · ruff · mypy · GitHub Actions ·
-Docker
+Docker + Docker Compose · nginx
 
 The full project spec is in [`CLAUDE.md`](CLAUDE.md).
 
