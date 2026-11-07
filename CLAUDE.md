@@ -172,8 +172,9 @@ Each milestone ends with:
 | M6 | React dashboard: run form, equity curve, drawdown chart, monthly returns heatmap, trade table, single-trade drill-down | Dashboard runs locally against the API |
 | M7 | Conditions & robustness: add §5 conditions one at a time (entry timing, VIX filter, event skip, stop-loss/take-profit via daily high/low, ADX filter); in-sample vs out-of-sample split; parameter sweep heatmap; results by VIX regime and event weeks | Each condition's effect shown in isolation, out-of-sample next to in-sample |
 | M8 | Polish: docker compose, full CI, README with screenshots and architecture diagram | `docker compose up` runs everything |
+| M9 | Iron condor study (`docs/research/m9_iron_condor_plan.md`): one-time engine generalisation to signed multi-leg positions, three pre-registered premium-distance variants against B0, cost and stamp sensitivities; no sweep and no added filters | Tests pass; B0 reproduces byte for byte; two condor trades traced by hand; study run once and reported with its verdicts; forward evaluation stays one-time |
 
-After M8: add strategies (strangle, iron condor, debit spreads) through the strategy interface,
+After M9: add further strategies (strangle, debit spreads) through the strategy interface,
 then BANKNIFTY.
 
 ## 8. Architecture rules (so expansion works later)
@@ -216,3 +217,16 @@ then BANKNIFTY.
   runs record the commit baked into the image at build time; if neither git nor a baked-in
   commit is available, they record commit `unknown` with uncommitted changes, never a clean
   state. Studies need git and run on the host only.
+- 2026-11-07, before M9, approved by the owner: M9 added as an iron condor study under the
+  pre-registration `docs/research/m9_iron_condor_plan.md` (machine-readable twin
+  `docs/research/m9_plan.toml`). One-time exception to §8: the engine is generalised to signed
+  multi-leg positions so a strategy with bought legs can run; after this, new option
+  structures need no engine change for bought legs. B0 must reproduce byte for byte.
+  Exercised bought legs pay STT on intrinsic value and the SEBI fee on notional, and
+  `reference/cost_rates.csv` is corrected to the intrinsic-value basis in force since
+  1 Sep 2019. Labelled, unverified modelling assumptions, each with a reported sensitivity:
+  stamp duty on cash exercise is ₹0 (statutory interpretation, not a verified legal fact);
+  SEBI notional is settlement level × quantity; IPFT is in the GST base for M9's study only,
+  with the historical default (IPFT excluded) unchanged everywhere else. Brokerage on
+  exercise is ₹0, an assumption. Condors stay off the CLI and API launch paths until the
+  forward evaluation.
