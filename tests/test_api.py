@@ -104,7 +104,10 @@ def test_run_detail(api: Api) -> None:
     }
     assert detail["manifest"]["run_id"] == api.run_id
     assert detail["manifest"]["data"]["trading_day_count"] == 4
-    assert all(detail["artifacts"].values())
+    # Every file a straddle run writes is present; the multi-leg files (M9) are not.
+    leg_files = {"legs.csv", "leg_marks.csv"}
+    assert all(v for k, v in detail["artifacts"].items() if k not in leg_files)
+    assert not any(detail["artifacts"][k] for k in leg_files)
     assert (detail["trade_count"], detail["skipped_count"]) == (1, 0)
 
 

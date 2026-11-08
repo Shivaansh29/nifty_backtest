@@ -36,6 +36,7 @@ from nifty_backtest.api.schemas import (
     EquityPoint,
     ErrorBody,
     Health,
+    LegRecord,
     Metrics,
     MonthRow,
     RunDetail,
@@ -242,6 +243,12 @@ def _add_run_routes(
     def run_trade(run_id: RunId, trade_id: TradeId, store: Store) -> TradeDetail:
         """One trade with its mark-to-market on every day it was held."""
         return store.trade(run_id, trade_id)
+
+    @app.get(prefix + "/{run_id}/legs", tags=[results_tag], responses=_errors(404, 422, 500))
+    def run_legs(run_id: RunId, store: Store) -> list[LegRecord]:
+        """Every leg of every trade, exactly as saved in legs.csv (multi-leg runs, M9). Empty
+        for a straddle run, which has no per-leg file."""
+        return store.legs(run_id)
 
     @app.get(prefix + "/{run_id}/equity", tags=[results_tag], responses=_errors(404, 422, 500))
     def run_equity(run_id: RunId, store: Store) -> list[EquityPoint]:

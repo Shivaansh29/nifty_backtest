@@ -1,7 +1,8 @@
 // One research study (M7): the pre-registered plan, the baseline's edge, the primary
 // variants with their verdicts, every run side by side, sensitivity families, the cost grid
 // and the regime breakdowns. All statistics and verdicts are computed in Python and served
-// from study.json; this page only lays them out.
+// from study.json; this page only lays them out. An M9 study (plan schema_version 2) gets its
+// own layout: verdicts apart from descriptions, and its cost assumptions stated.
 import type { StudyFile } from "../api/types";
 import { useApi } from "../api/useApi";
 import { Section } from "../components/MetricCard";
@@ -9,6 +10,7 @@ import { ApiErrorNotice, Loading, Notice } from "../components/States";
 import { day, savedAt } from "../lib/format";
 import { href, studyPath } from "../lib/route";
 import { AllVariantsTable, FamilyTables } from "../research/Comparisons";
+import { CondorStudyBody } from "../research/Condor";
 import { CostGrid, RegimeTables } from "../research/CostAndRegimes";
 import { EdgeTable, VerdictTable } from "../research/Verdicts";
 
@@ -23,6 +25,14 @@ export function StudyPage({ studyId }: { studyId: string }) {
         ← all studies
       </a>
       <StudyHeader study={s} />
+      {s.plan.schema_version === 2 ? <CondorStudyBody study={s} /> : <M7StudyBody study={s} />}
+    </div>
+  );
+}
+
+function M7StudyBody({ study: s }: { study: StudyFile }) {
+  return (
+    <>
       <Section title="Does the baseline have an edge?">
         <EdgeTable study={s} />
       </Section>
@@ -41,7 +51,7 @@ export function StudyPage({ studyId }: { studyId: string }) {
       <Section title="Baseline by regime (descriptive)">
         <RegimeTables study={s} />
       </Section>
-    </div>
+    </>
   );
 }
 
@@ -53,8 +63,9 @@ function StudyHeader({ study }: { study: StudyFile }) {
       <h1 className="font-mono text-xl font-semibold">{study.study_id}</h1>
       <Notice tone="warning" title="Nothing on this page is confirmed">
         <p>
-          The validation period was already seen while building M4, so it can show that a result
-          does not hold up, but it cannot confirm one. A variant can only be confirmed on the
+          The validation period was already seen while building M4
+          {plan.schema_version === 2 ? " (for the straddle; a condor is closely related)" : ""}, so it
+          can show that a result does not hold up, but it cannot confirm one. A variant can only be confirmed on the
           forward holdout: trades entered from {day(forward.first_entry)}, evaluated once at{" "}
           {forward.min_trades} completed trades or on {day(forward.latest_evaluation)}, whichever
           comes first.
@@ -77,6 +88,10 @@ function StudyHeader({ study }: { study: StudyFile }) {
         <dd>
           Paired differences are in % of the baseline's premium for the same expiry; a week the
           variant skipped counts as 0 points.
+          {plan.schema_version === 2
+            ? " R_P: net result in % of P, the ATM call + put close (not traded), the primary " +
+              "return. R_ML: in % of the maximum loss, secondary."
+            : ""}
         </dd>
         <dt className="text-slate-500">Plan</dt>
         <dd className="font-mono text-xs">

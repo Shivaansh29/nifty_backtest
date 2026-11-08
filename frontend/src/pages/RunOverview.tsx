@@ -5,6 +5,7 @@
 import type {
   DailyPoint,
   EquityPoint,
+  LegRecord,
   Metrics,
   MonthRow,
   RunDetail,
@@ -169,6 +170,10 @@ function TradesSection({ runId, studyId }: RunProps) {
   if (trades.state === "loading") return <Loading what="trades" />;
   if (trades.state === "error") return <ApiErrorNotice error={trades.error} what="trades" />;
   if (trades.data.length === 0) return <Notice tone="info" title="No trades in this run" />;
+  // A multi-leg run (M9) has no one-strike column: its strikes come from legs.csv.
+  if (trades.data.some((t) => t.strike == null)) {
+    return <MultiLegTrades trades={trades.data} runId={runId} studyId={studyId} />;
+  }
   return <TradeTable trades={trades.data} runId={runId} studyId={studyId} />;
 }
 
@@ -188,3 +193,9 @@ function SkippedSection({ runId, studyId }: RunProps) {
   );
 }
 
+function MultiLegTrades({ trades, runId, studyId }: { trades: TradeRecord[]; runId: string; studyId?: string }) {
+  const legs = useApi<LegRecord[]>(runPath(runId, "/legs", studyId));
+  if (legs.state === "loading") return <Loading what="legs" />;
+  // Without legs the table still shows every trade, with a dash where the strikes would be.
+  return <TradeTable trades={trades} legs={legs.state === "ok" ? legs.data : undefined} runId={runId} studyId={studyId} />;
+}

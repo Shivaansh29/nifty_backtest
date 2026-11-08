@@ -16,6 +16,11 @@ Four runs cover the dashboard's states:
 One study (M7) covers the research page: the synthetic study of tests/test_research.py
 (STUDY_ID), with its run ids renumbered.
 
+M9 adds a multi-leg run (CONDOR_RUN_ID: the hand-computed condor week of
+tests/test_engine_multileg.py, net Rs -14,668.1123456), served from its own runs folder so the
+run list above is unchanged, and the synthetic M9 study of tests/test_condor_study.py
+(M9_STUDY_ID).
+
 Things that would differ between machines or runs (run ids, git state, absolute paths, file
 hashes) are replaced with fixed values, so regenerating gives the same file on the same
 platform. Across platforms a float read back from CSV can differ in its last binary digit, so
@@ -46,7 +51,10 @@ from nifty_backtest.engine.backtest import run_backtest
 from nifty_backtest.engine.runs import save_run
 from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.metrics.summary import write_metrics
+from nifty_backtest.strategies.iron_condor import IronCondor
 from nifty_backtest.strategies.short_straddle import ShortStraddle
+from tests import test_engine_multileg as condor_week
+from tests.test_condor_study import run_small_study
 from tests.test_engine import THU, setup, week
 from tests.test_research import synthetic_study
 
@@ -58,6 +66,9 @@ INVALID_ID = "20250807-130000-short_straddle"
 TRADE_ID = "NIFTY-2025-08-07"
 STUDY_ID = "20250808-120000-test-study"
 V3_RUN_ID = "20250808-110004-short_straddle"  # V3, development: the 5th run the study saves
+CONDOR_RUN_ID = "20250605-160000-iron_condor"
+CONDOR_TRADE_ID = "NIFTY-2025-06-05"
+M9_STUDY_ID = "20250613-120000-m9-iron-condor"
 FIXED_HASH = "synthetic-fixture"
 FIXED_GIT = {"commit": "0123456789abcdef0123456789abcdef01234567", "uncommitted_changes": False}
 
@@ -160,6 +171,57 @@ def _make_study(studies_dir: Path) -> None:
         (target / "study.json").write_text(json.dumps(study, indent=2))
 
 
+def _make_condor_run(runs_dir: Path) -> None:
+    """The hand-computed condor week, saved and with metrics, under a fixed run id."""
+    run = condor_week.setup(
+        DataConfig(data_dir=Path("condor_data")), Path("condor"), condor_week.condor_week()
+    )
+    saved = save_run(run_backtest(run, IronCondor()), run, IronCondor(), runs_dir)
+    folder = saved.rename(runs_dir / CONDOR_RUN_ID)
+    _fix_manifest(folder)
+    write_metrics(folder)
+
+    def relative_paths(config: dict[str, Any]) -> None:
+        config["run"]["costs"]["rates_path"] = "reference/cost_rates.csv"
+        config["run"]["data"]["data_dir"] = "data"
+        config["run"]["data"]["reference_dir"] = "reference"
+
+    _edit_json(folder / "config.json", relative_paths)
+
+
+def _make_m9_study(studies_dir: Path) -> None:
+    """The synthetic M9 study, with a fixed study id and run ids numbered in run order."""
+    target = studies_dir.resolve() / M9_STUDY_ID
+    with tempfile.TemporaryDirectory() as tmp, contextlib.chdir(tmp):
+        built = run_small_study(DataConfig(data_dir=Path("data")), Path("."))
+        text = (built / "study.json").read_text()
+        renames = {built.name: M9_STUDY_ID}
+        for i, record in enumerate(json.loads(text)["runs"]):
+            strategy = record["run_id"].split("-", 2)[2]
+            renames[record["run_id"]] = f"20250613-1100{i:02d}-{strategy}"
+        for old, new in renames.items():
+            text = text.replace(old, new)
+        study = json.loads(text)
+        study["created_at"] = "2025-06-13T12:00:00"
+        study["plan"]["git"] = {
+            "head": FIXED_GIT["commit"],
+            "files": {
+                name: {"last_commit": FIXED_GIT["commit"]} for name in study["plan"]["git"]["files"]
+            },
+            "uncommitted_changes": False,
+        }
+        (target / "runs").mkdir(parents=True)
+        for old, new in renames.items():
+            if old == built.name:
+                continue
+            run_folder = target / "runs" / new
+            shutil.copytree(built / "runs" / old, run_folder)
+            _fix_manifest(run_folder)
+            if (run_folder / "metrics.json").exists():
+                _edit_json(run_folder / "metrics.json", lambda m, new=new: m.update(run_id=new))
+        (target / "study.json").write_text(json.dumps(study, indent=2))
+
+
 def _error(response: Any) -> dict[str, Any]:
     return {"status": response.status_code, "body": response.json()}
 
@@ -170,6 +232,17 @@ def build() -> str:
         runs_dir = Path("runs")
         run = _make_runs(runs_dir)
         _make_study(Path("studies"))
+        _make_m9_study(Path("studies"))
+        _make_condor_run(Path("condor_runs"))
+        condor = TestClient(
+            create_app(ApiSettings(runs_dir=Path("condor_runs"), today=lambda: THU))
+        )
+
+        def condor_get(path: str) -> Any:
+            response = condor.get(f"/api/runs/{CONDOR_RUN_ID}{path}")
+            assert response.status_code == 200, (path, response.text)
+            return response.json()
+
         settings = ApiSettings(
             runs_dir=runs_dir,
             studies_dir=Path("studies"),
@@ -250,6 +323,11 @@ def build() -> str:
                 "TradeDetail",
                 study(f"/{STUDY_ID}/runs/{V3_RUN_ID}/trades/{TRADE_ID}"),
             ),
+            ("m9Study", "StudyFile", study(f"/{M9_STUDY_ID}")),
+            ("condorDetail", "RunDetail", condor_get("")),
+            ("condorTrades", "TradeRecord[]", condor_get("/trades")),
+            ("condorTradeDetail", "TradeDetail", condor_get(f"/trades/{CONDOR_TRADE_ID}")),
+            ("condorLegs", "LegRecord[]", condor_get("/legs")),
             (
                 "errorStudyNotFound",
                 "ErrorFixture",
@@ -284,6 +362,9 @@ def build() -> str:
         f'export const TRADE_ID = "{TRADE_ID}";',
         f'export const STUDY_ID = "{STUDY_ID}";',
         f'export const V3_RUN_ID = "{V3_RUN_ID}";',
+        f'export const CONDOR_RUN_ID = "{CONDOR_RUN_ID}";',
+        f'export const CONDOR_TRADE_ID = "{CONDOR_TRADE_ID}";',
+        f'export const M9_STUDY_ID = "{M9_STUDY_ID}";',
     ]
     for name, type_name, data in fixtures:
         lines += ["", f"export const {name}: {type_name} = {json.dumps(data, indent=2)};"]

@@ -32,6 +32,8 @@ from nifty_backtest.api.schemas import (
     DailyPoint,
     EquityPoint,
     Headline,
+    LegMark,
+    LegRecord,
     ManifestFile,
     MarkRow,
     Metrics,
@@ -62,6 +64,8 @@ METRICS_FILES = ("metrics.json", "yearly.csv", "monthly.csv")
 # Added in M6. Metrics written earlier lack it, so it is optional: its absence does not make a
 # run incomplete, but /daily then says how to add it.
 DAILY_FILE = "daily.csv"
+# M9: written only by multi-leg strategies. A straddle run without them is complete.
+LEG_FILES = ("legs.csv", "leg_marks.csv")
 # A run with no trades saves trades.csv and marks.csv with no columns at all (an empty
 # DataFrame); for these two files, "no columns" means "no rows", not a broken file.
 MAY_BE_EMPTY = ("trades.csv", "marks.csv")
@@ -153,7 +157,26 @@ class RunStore:
         if not matches:
             raise ApiError(404, "trade_not_found", f"run {run_id} has no trade {trade_id}", run_id)
         marks = [m for m in self._csv(run_id, "marks.csv", MarkRow) if m.trade_id == trade_id]
-        return TradeDetail(trade=matches[0], marks=sorted(marks, key=lambda m: m.date))
+        legs = leg_marks = None
+        if (self.folder(run_id) / "legs.csv").is_file():
+            legs = [x for x in self._csv(run_id, "legs.csv", LegRecord) if x.trade_id == trade_id]
+            leg_marks = [
+                x for x in self._csv(run_id, "leg_marks.csv", LegMark) if x.trade_id == trade_id
+            ]
+        return TradeDetail(
+            trade=matches[0],
+            marks=sorted(marks, key=lambda m: m.date),
+            legs=legs,
+            leg_marks=leg_marks,
+        )
+
+    def legs(self, run_id: str) -> list[LegRecord]:
+        """Every leg of every trade (legs.csv, multi-leg runs only). A straddle run has no
+        legs.csv, so it has no leg records: an empty list, nothing derived."""
+        self.manifest(run_id)
+        if not (self.folder(run_id) / "legs.csv").is_file():
+            return []
+        return self._csv(run_id, "legs.csv", LegRecord)
 
     def equity(self, run_id: str) -> list[EquityPoint]:
         self.manifest(run_id)
@@ -242,6 +265,9 @@ class RunStore:
         for read in (self.trades, self.equity, self.skipped):
             attempt(lambda read=read: read(run_id))  # type: ignore[misc]
         attempt(lambda: self._csv(run_id, "marks.csv", MarkRow))
+        if (self.folder(run_id) / "legs.csv").is_file():
+            attempt(lambda: self._csv(run_id, "legs.csv", LegRecord))
+            attempt(lambda: self._csv(run_id, "leg_marks.csv", LegMark))
         status: RunStatus = "invalid" if problems else "complete"
         metrics: Metrics | None = None
         try:
@@ -295,7 +321,7 @@ class RunStore:
             manifest=manifest,
             artifacts={
                 name: (folder / name).is_file()
-                for name in (*CORE_FILES, *METRICS_FILES, DAILY_FILE)
+                for name in (*CORE_FILES, *METRICS_FILES, DAILY_FILE, *LEG_FILES)
             },
             trade_count=count(self.trades),
             skipped_count=count(self.skipped),

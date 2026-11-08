@@ -49,6 +49,9 @@ class CostSettings(Artifact):
     brokerage_per_order_rs: float
     slippage_points_per_leg: float
     rates_path: str
+    # M9: IPFT in GST's base (an unverified assumption). Absent in runs saved before M9,
+    # which used the base without IPFT.
+    gst_on_ipft: bool | None = None
 
 
 class EntryFilterSettings(Artifact):
@@ -131,11 +134,12 @@ class TradeRecord(Artifact):
     relabelled: bool
     calendar_days_to_expiry: int
     trading_days_held: int
-    strike: float
+    # One-strike straddle columns: null for a multi-leg trade (M9), never a made-up value.
+    strike: float | None
     nifty_close_at_entry: float
     vix_at_entry: float | None
-    ce_entry_close: float
-    pe_entry_close: float
+    ce_entry_close: float | None
+    pe_entry_close: float | None
     premium_close_points: float
     premium_fill_points: float
     lot_size: int
@@ -145,9 +149,9 @@ class TradeRecord(Artifact):
     settlement_level: float
     nifty_move_pct: float
     # Per unit. For a leg bought back early by an M7 exit rule, its buy-back price (the
-    # *_exit_* columns below say which legs and when).
-    ce_value_at_expiry: float
-    pe_value_at_expiry: float
+    # *_exit_* columns below say which legs and when). Null for a multi-leg trade.
+    ce_value_at_expiry: float | None
+    pe_value_at_expiry: float | None
     value_at_expiry_points: float
     pnl_points_gross: float
     pnl_points_net: float
@@ -186,6 +190,59 @@ class TradeRecord(Artifact):
     knowable_events: str | None = None
     # With strike_reference = previous_close: the NIFTY level that picked the strike.
     strike_reference_level: float | None = None
+    # M9 multi-leg columns (iron condor). For these trades premium_*_points are the NET
+    # credit and pnl_pct_premium_* are % of net credit; the primary return is
+    # pnl_pct_reference_premium_net (R_P) and the secondary pnl_pct_max_loss_net (R_ML).
+    reference_atm: float | None = None
+    reference_premium_points: float | None = None  # P: ATM CE + PE close, not traded
+    reference_date: date | None = None
+    wing_call_points: float | None = None
+    wing_put_points: float | None = None
+    max_loss_points: float | None = None  # widest wing - filled credit, before charges
+    pnl_pct_reference_premium_net: float | None = None
+    pnl_pct_max_loss_net: float | None = None
+    legs_stale_days: int | None = None
+
+
+class LegRecord(Artifact):
+    """One leg of one multi-leg trade (legs.csv, M9). Rupee columns are this leg's own."""
+
+    trade_id: str
+    leg_id: str
+    side: Literal["sell", "buy"]
+    option_type: Literal["CE", "PE"]
+    strike: float
+    entry_close: float
+    entry_fill: float
+    quantity: int
+    lot_size: int
+    lot_size_source: str
+    intrinsic_at_expiry: float
+    expiry_status: Literal["worthless", "assigned", "exercised"]
+    pnl_points_gross: float
+    pnl_rs_gross: float
+    slippage_rs: float
+    charges_rs: float
+    brokerage_rs: float
+    stt_rs: float
+    exchange_rs: float
+    ipft_rs: float
+    sebi_rs: float
+    stamp_rs: float
+    gst_rs: float
+    pnl_rs_net: float
+
+
+class LegMark(Artifact):
+    """One leg on one day (leg_marks.csv, M9): the official close, or on expiry day the
+    settlement value. A missing row has close null and missing true."""
+
+    trade_id: str
+    leg_id: str
+    date: date
+    close: float | None
+    stale: bool
+    missing: bool
 
 
 class MarkRow(Artifact):
@@ -222,10 +279,13 @@ class SkippedWeek(Artifact):
 
 
 class TradeDetail(BaseModel):
-    """A single trade with its daily marks (drill-down)."""
+    """A single trade with its daily marks (drill-down). `legs` and `leg_marks` come from a
+    multi-leg run's legs.csv and leg_marks.csv; for a straddle run they are null."""
 
     trade: TradeRecord
     marks: list[MarkRow]
+    legs: list[LegRecord] | None = None
+    leg_marks: list[LegMark] | None = None
 
 
 # --- metrics: metrics.json, yearly.csv, monthly.csv ---------------------------------------
@@ -518,6 +578,12 @@ class StudyPlanInfo(Artifact):
     bootstrap_resamples: int
     block_length: int
     thresholds: dict[str, float]
+    # M9 (schema_version 2) only: the declared structures, the GST base every run used, and
+    # each cost assumption with its status (e.g. "modelling_assumption_unverified").
+    schema_version: int | None = None
+    structures: list[dict[str, str | float]] | None = None
+    gst_on_ipft: bool | None = None
+    assumptions: dict[str, dict[str, str | bool | int | float]] | None = None
 
 
 class EdgePeriod(Artifact):
@@ -569,12 +635,14 @@ class StudyVariantSettings(Artifact):
     slippage_points_per_leg: float
     capital_rs: float
     strike_reference: Literal["entry_close", "previous_close"]
-    vix_min: float | None
-    vix_max: float | None
-    adx_max: float | None
-    skip_scheduled_events: bool
-    stop_multiple: float | None
-    take_profit_decay: float | None
+    # M7 conditions: absent from an M9 study, whose variants differ in structure instead.
+    vix_min: float | None = None
+    vix_max: float | None = None
+    adx_max: float | None = None
+    skip_scheduled_events: bool | None = None
+    stop_multiple: float | None = None
+    take_profit_decay: float | None = None
+    structure: str | None = None  # M9: a [[structures]] id from the plan
 
 
 StudyRole = Literal["baseline", "primary", "sensitivity", "realism", "descriptive"]
@@ -643,6 +711,13 @@ class ComparisonRow(Artifact):
     paired_tail5_baseline: float | None = None
     paired_worst_variant: float | None = None
     paired_worst_baseline: float | None = None
+    # M9: R_P and R_ML means (primary and secondary returns), trades that lost the whole
+    # widest wing, and what the pairs are measured against (C1-R: C1, in B0's premium).
+    mean_r_p: float | None = None
+    mean_r_ml: float | None = None
+    max_loss_hits: int | None = None
+    paired_against: str | None = None
+    paired_denominator: str | None = None
 
 
 class FamilyRow(Artifact):
@@ -674,6 +749,72 @@ class CostGridRow(Artifact):
     sharpe_notional: float | None
     max_drawdown_pct: float
     run_id: str
+    mean_r_p: float | None = None  # M9
+
+
+class Q1Row(Artifact):
+    """M9 Q1: a variant's own mean R_P in one period, with both bootstrap intervals and their
+    envelope; `verdict` is the pre-registered edge rule over both periods. R_ML and % of net
+    credit are descriptive."""
+
+    variant: str
+    period: str
+    n: int
+    mean: float | None
+    t: float | None
+    p: float | None
+    ci_iid: Interval | None
+    ci_block: Interval | None
+    ci_conservative: Interval | None
+    lag1_autocorrelation: float | None
+    mean_r_ml: float | None
+    mean_pct_net_credit: float | None
+    verdict: str
+
+
+class Q3Row(Artifact):
+    """M9 Q3: risk trade-off, reported with no verdict."""
+
+    variant: str
+    period: str
+    trades: int
+    net_pnl_rs: float
+    gross_pnl_rs: float | None
+    max_drawdown_rs: float | None
+    max_drawdown_pct: float
+    lot_free_max_drawdown: float  # peak-to-trough of cumulative notional return
+    lot_free_drawdown_lower_bound: bool
+    net_over_max_drawdown: float | None
+    worst_trade_rs: float | None
+    worst_r_p: float | None
+    tail5_common: float | None  # mean of the worst 5% of expiries, % of B0's premium
+    win_rate: float | None
+    max_loss_hits: int | None
+
+
+class SensitivityRow(Artifact):
+    """M9: one cost-assumption case (stamp duty on exercise, SEBI notional, GST base) for one
+    variant and period. Descriptive: verdicts are never changed by it."""
+
+    sensitivity: Literal["stamp", "notional", "gst"]
+    case: str
+    variant: str
+    period: str
+    extra_cost_rs: float
+    mean_r_p: float | None
+    paired_mean: float | None = None
+    p_holm: float | None = None
+    status_would_be: str | None = None
+    verdict_changes: bool | None = None
+
+
+class TraceSelection(Artifact):
+    """M9: the two trades picked by code for tracing by hand against raw NSE files."""
+
+    variant: str
+    period: str
+    bought_leg_in_the_money: str | None
+    no_bought_leg_in_the_money: str | None
 
 
 class RegimeRow(Artifact):
@@ -701,6 +842,11 @@ class StudyFile(Artifact):
     cost_grid: list[CostGridRow]
     regimes: list[RegimeRow]
     runs: list[StudyRunRecord]
+    # M9 (schema_version 2) only.
+    q1: list[Q1Row] | None = None
+    q3: list[Q3Row] | None = None
+    sensitivities: list[SensitivityRow] | None = None
+    trace: TraceSelection | None = None
 
 
 StudyStatus = Literal["complete", "invalid"]

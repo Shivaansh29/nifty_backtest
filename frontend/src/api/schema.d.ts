@@ -180,6 +180,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/legs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Legs
+         * @description Every leg of every trade, exactly as saved in legs.csv (multi-leg runs, M9). Empty
+         *     for a straddle run, which has no per-leg file.
+         */
+        get: operations["run_legs_api_runs__run_id__legs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}/equity": {
         parameters: {
             query?: never;
@@ -387,6 +408,27 @@ export interface paths {
          * @description One trade with its mark-to-market on every day it was held.
          */
         get: operations["run_trade_api_studies__study_id__runs__run_id__trades__trade_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{study_id}/runs/{run_id}/legs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Legs
+         * @description Every leg of every trade, exactly as saved in legs.csv (multi-leg runs, M9). Empty
+         *     for a straddle run, which has no per-leg file.
+         */
+        get: operations["run_legs_api_studies__study_id__runs__run_id__legs_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -616,6 +658,16 @@ export interface components {
             paired_worst_variant?: number | null;
             /** Paired Worst Baseline */
             paired_worst_baseline?: number | null;
+            /** Mean R P */
+            mean_r_p?: number | null;
+            /** Mean R Ml */
+            mean_r_ml?: number | null;
+            /** Max Loss Hits */
+            max_loss_hits?: number | null;
+            /** Paired Against */
+            paired_against?: string | null;
+            /** Paired Denominator */
+            paired_denominator?: string | null;
         };
         /** CostGridRow */
         CostGridRow: {
@@ -641,6 +693,8 @@ export interface components {
             max_drawdown_pct: number;
             /** Run Id */
             run_id: string;
+            /** Mean R P */
+            mean_r_p?: number | null;
         };
         /** CostSettings */
         CostSettings: {
@@ -650,6 +704,8 @@ export interface components {
             slippage_points_per_leg: number;
             /** Rates Path */
             rates_path: string;
+            /** Gst On Ipft */
+            gst_on_ipft?: boolean | null;
         };
         /**
          * DailyPoint
@@ -902,6 +958,91 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * LegMark
+         * @description One leg on one day (leg_marks.csv, M9): the official close, or on expiry day the
+         *     settlement value. A missing row has close null and missing true.
+         */
+        LegMark: {
+            /** Trade Id */
+            trade_id: string;
+            /** Leg Id */
+            leg_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Close */
+            close: number | null;
+            /** Stale */
+            stale: boolean;
+            /** Missing */
+            missing: boolean;
+        };
+        /**
+         * LegRecord
+         * @description One leg of one multi-leg trade (legs.csv, M9). Rupee columns are this leg's own.
+         */
+        LegRecord: {
+            /** Trade Id */
+            trade_id: string;
+            /** Leg Id */
+            leg_id: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "sell" | "buy";
+            /**
+             * Option Type
+             * @enum {string}
+             */
+            option_type: "CE" | "PE";
+            /** Strike */
+            strike: number;
+            /** Entry Close */
+            entry_close: number;
+            /** Entry Fill */
+            entry_fill: number;
+            /** Quantity */
+            quantity: number;
+            /** Lot Size */
+            lot_size: number;
+            /** Lot Size Source */
+            lot_size_source: string;
+            /** Intrinsic At Expiry */
+            intrinsic_at_expiry: number;
+            /**
+             * Expiry Status
+             * @enum {string}
+             */
+            expiry_status: "worthless" | "assigned" | "exercised";
+            /** Pnl Points Gross */
+            pnl_points_gross: number;
+            /** Pnl Rs Gross */
+            pnl_rs_gross: number;
+            /** Slippage Rs */
+            slippage_rs: number;
+            /** Charges Rs */
+            charges_rs: number;
+            /** Brokerage Rs */
+            brokerage_rs: number;
+            /** Stt Rs */
+            stt_rs: number;
+            /** Exchange Rs */
+            exchange_rs: number;
+            /** Ipft Rs */
+            ipft_rs: number;
+            /** Sebi Rs */
+            sebi_rs: number;
+            /** Stamp Rs */
+            stamp_rs: number;
+            /** Gst Rs */
+            gst_rs: number;
+            /** Pnl Rs Net */
+            pnl_rs_net: number;
+        };
         /** ManifestFile */
         ManifestFile: {
             /** Run Id */
@@ -1006,6 +1147,85 @@ export interface components {
             };
             /** Uncommitted Changes */
             uncommitted_changes: boolean;
+        };
+        /**
+         * Q1Row
+         * @description M9 Q1: a variant's own mean R_P in one period, with both bootstrap intervals and their
+         *     envelope; `verdict` is the pre-registered edge rule over both periods. R_ML and % of net
+         *     credit are descriptive.
+         */
+        Q1Row: {
+            /** Variant */
+            variant: string;
+            /** Period */
+            period: string;
+            /** N */
+            n: number;
+            /** Mean */
+            mean: number | null;
+            /** T */
+            t: number | null;
+            /** P */
+            p: number | null;
+            /** Ci Iid */
+            ci_iid: [
+                number,
+                number
+            ] | null;
+            /** Ci Block */
+            ci_block: [
+                number,
+                number
+            ] | null;
+            /** Ci Conservative */
+            ci_conservative: [
+                number,
+                number
+            ] | null;
+            /** Lag1 Autocorrelation */
+            lag1_autocorrelation: number | null;
+            /** Mean R Ml */
+            mean_r_ml: number | null;
+            /** Mean Pct Net Credit */
+            mean_pct_net_credit: number | null;
+            /** Verdict */
+            verdict: string;
+        };
+        /**
+         * Q3Row
+         * @description M9 Q3: risk trade-off, reported with no verdict.
+         */
+        Q3Row: {
+            /** Variant */
+            variant: string;
+            /** Period */
+            period: string;
+            /** Trades */
+            trades: number;
+            /** Net Pnl Rs */
+            net_pnl_rs: number;
+            /** Gross Pnl Rs */
+            gross_pnl_rs: number | null;
+            /** Max Drawdown Rs */
+            max_drawdown_rs: number | null;
+            /** Max Drawdown Pct */
+            max_drawdown_pct: number;
+            /** Lot Free Max Drawdown */
+            lot_free_max_drawdown: number;
+            /** Lot Free Drawdown Lower Bound */
+            lot_free_drawdown_lower_bound: boolean;
+            /** Net Over Max Drawdown */
+            net_over_max_drawdown: number | null;
+            /** Worst Trade Rs */
+            worst_trade_rs: number | null;
+            /** Worst R P */
+            worst_r_p: number | null;
+            /** Tail5 Common */
+            tail5_common: number | null;
+            /** Win Rate */
+            win_rate: number | null;
+            /** Max Loss Hits */
+            max_loss_hits: number | null;
         };
         /** Ratio */
         Ratio: {
@@ -1177,6 +1397,36 @@ export interface components {
             last_trading_day: string | null;
             headline: components["schemas"]["Headline"] | null;
         };
+        /**
+         * SensitivityRow
+         * @description M9: one cost-assumption case (stamp duty on exercise, SEBI notional, GST base) for one
+         *     variant and period. Descriptive: verdicts are never changed by it.
+         */
+        SensitivityRow: {
+            /**
+             * Sensitivity
+             * @enum {string}
+             */
+            sensitivity: "stamp" | "notional" | "gst";
+            /** Case */
+            case: string;
+            /** Variant */
+            variant: string;
+            /** Period */
+            period: string;
+            /** Extra Cost Rs */
+            extra_cost_rs: number;
+            /** Mean R P */
+            mean_r_p: number | null;
+            /** Paired Mean */
+            paired_mean?: number | null;
+            /** P Holm */
+            p_holm?: number | null;
+            /** Status Would Be */
+            status_would_be?: string | null;
+            /** Verdict Changes */
+            verdict_changes?: boolean | null;
+        };
         /** SkippedWeek */
         SkippedWeek: {
             /**
@@ -1292,6 +1542,13 @@ export interface components {
             regimes: components["schemas"]["RegimeRow"][];
             /** Runs */
             runs: components["schemas"]["StudyRunRecord"][];
+            /** Q1 */
+            q1?: components["schemas"]["Q1Row"][] | null;
+            /** Q3 */
+            q3?: components["schemas"]["Q3Row"][] | null;
+            /** Sensitivities */
+            sensitivities?: components["schemas"]["SensitivityRow"][] | null;
+            trace?: components["schemas"]["TraceSelection"] | null;
         };
         /** StudyPeriod */
         StudyPeriod: {
@@ -1338,6 +1595,20 @@ export interface components {
             thresholds: {
                 [key: string]: number;
             };
+            /** Schema Version */
+            schema_version?: number | null;
+            /** Structures */
+            structures?: {
+                [key: string]: string | number;
+            }[] | null;
+            /** Gst On Ipft */
+            gst_on_ipft?: boolean | null;
+            /** Assumptions */
+            assumptions?: {
+                [key: string]: {
+                    [key: string]: string | boolean | number;
+                };
+            } | null;
         };
         /** StudyRunRecord */
         StudyRunRecord: {
@@ -1411,17 +1682,19 @@ export interface components {
              */
             strike_reference: "entry_close" | "previous_close";
             /** Vix Min */
-            vix_min: number | null;
+            vix_min?: number | null;
             /** Vix Max */
-            vix_max: number | null;
+            vix_max?: number | null;
             /** Adx Max */
-            adx_max: number | null;
+            adx_max?: number | null;
             /** Skip Scheduled Events */
-            skip_scheduled_events: boolean;
+            skip_scheduled_events?: boolean | null;
             /** Stop Multiple */
-            stop_multiple: number | null;
+            stop_multiple?: number | null;
             /** Take Profit Decay */
-            take_profit_decay: number | null;
+            take_profit_decay?: number | null;
+            /** Structure */
+            structure?: string | null;
         };
         /** StudyVerdict */
         StudyVerdict: {
@@ -1433,13 +1706,32 @@ export interface components {
             status: string;
         };
         /**
+         * TraceSelection
+         * @description M9: the two trades picked by code for tracing by hand against raw NSE files.
+         */
+        TraceSelection: {
+            /** Variant */
+            variant: string;
+            /** Period */
+            period: string;
+            /** Bought Leg In The Money */
+            bought_leg_in_the_money: string | null;
+            /** No Bought Leg In The Money */
+            no_bought_leg_in_the_money: string | null;
+        };
+        /**
          * TradeDetail
-         * @description A single trade with its daily marks (drill-down).
+         * @description A single trade with its daily marks (drill-down). `legs` and `leg_marks` come from a
+         *     multi-leg run's legs.csv and leg_marks.csv; for a straddle run they are null.
          */
         TradeDetail: {
             trade: components["schemas"]["TradeRecord"];
             /** Marks */
             marks: components["schemas"]["MarkRow"][];
+            /** Legs */
+            legs?: components["schemas"]["LegRecord"][] | null;
+            /** Leg Marks */
+            leg_marks?: components["schemas"]["LegMark"][] | null;
         };
         /**
          * TradeRecord
@@ -1476,15 +1768,15 @@ export interface components {
             /** Trading Days Held */
             trading_days_held: number;
             /** Strike */
-            strike: number;
+            strike: number | null;
             /** Nifty Close At Entry */
             nifty_close_at_entry: number;
             /** Vix At Entry */
             vix_at_entry: number | null;
             /** Ce Entry Close */
-            ce_entry_close: number;
+            ce_entry_close: number | null;
             /** Pe Entry Close */
-            pe_entry_close: number;
+            pe_entry_close: number | null;
             /** Premium Close Points */
             premium_close_points: number;
             /** Premium Fill Points */
@@ -1502,9 +1794,9 @@ export interface components {
             /** Nifty Move Pct */
             nifty_move_pct: number;
             /** Ce Value At Expiry */
-            ce_value_at_expiry: number;
+            ce_value_at_expiry: number | null;
             /** Pe Value At Expiry */
-            pe_value_at_expiry: number;
+            pe_value_at_expiry: number | null;
             /** Value At Expiry Points */
             value_at_expiry_points: number;
             /** Pnl Points Gross */
@@ -1571,6 +1863,24 @@ export interface components {
             knowable_events?: string | null;
             /** Strike Reference Level */
             strike_reference_level?: number | null;
+            /** Reference Atm */
+            reference_atm?: number | null;
+            /** Reference Premium Points */
+            reference_premium_points?: number | null;
+            /** Reference Date */
+            reference_date?: string | null;
+            /** Wing Call Points */
+            wing_call_points?: number | null;
+            /** Wing Put Points */
+            wing_put_points?: number | null;
+            /** Max Loss Points */
+            max_loss_points?: number | null;
+            /** Pnl Pct Reference Premium Net */
+            pnl_pct_reference_premium_net?: number | null;
+            /** Pnl Pct Max Loss Net */
+            pnl_pct_max_loss_net?: number | null;
+            /** Legs Stale Days */
+            legs_stale_days?: number | null;
         };
         /** TradeStats */
         TradeStats: {
@@ -2176,6 +2486,56 @@ export interface operations {
             };
         };
     };
+    run_legs_api_runs__run_id__legs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegRecord"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     run_equity_api_runs__run_id__equity_get: {
         parameters: {
             query?: never;
@@ -2717,6 +3077,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TradeDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    run_legs_api_studies__study_id__runs__run_id__legs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. 20261022-191259-short_straddle */
+                run_id: string;
+                /** @description e.g. 20261027-005848-m7-short-straddle-robustness */
+                study_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegRecord"][];
                 };
             };
             /** @description Not Found */

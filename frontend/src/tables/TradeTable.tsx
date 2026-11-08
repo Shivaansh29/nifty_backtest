@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   columnFilteringFeature,
   createColumnHelper,
@@ -12,7 +13,7 @@ import {
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
-import type { TradeRecord } from "../api/types";
+import type { LegRecord, TradeRecord } from "../api/types";
 import { day, decimal, percentValue, rupees } from "../lib/format";
 import { href } from "../lib/route";
 
@@ -30,7 +31,26 @@ const features = tableFeatures({
   paginatedRowModel: createPaginatedRowModel(),
 });
 
-const helper = createColumnHelper<typeof features, TradeRecord>();
+// The Strike column as text: the straddle's one strike, or a multi-leg trade's strikes from
+// legs.csv (puts low to high, then calls: "24,000 / 24,250 · 24,750 / 25,000"). A trade with
+// neither shows a dash; a strike is never guessed (M9 plan §9.5).
+type Row = TradeRecord & { strike_text: string };
+
+function strikeText(trade: TradeRecord, legs: LegRecord[] | undefined): string {
+  if (trade.strike != null) return trade.strike.toLocaleString("en-IN");
+  const mine = (legs ?? []).filter((l) => l.trade_id === trade.trade_id);
+  if (mine.length === 0) return "—";
+  const side = (type: string) =>
+    mine
+      .filter((l) => l.option_type === type)
+      .map((l) => l.strike)
+      .sort((a, b) => a - b)
+      .map((k) => k.toLocaleString("en-IN"))
+      .join(" / ");
+  return [side("PE"), side("CE")].filter(Boolean).join(" · ");
+}
+
+const helper = createColumnHelper<typeof features, Row>();
 const SEARCHABLE = new Set(["trade_id", "events", "expiry_weekday", "lot_size_source"]);
 
 const columns = helper.columns([
@@ -38,7 +58,7 @@ const columns = helper.columns([
   helper.accessor("entry_date", { header: "Entry", cell: (c) => day(c.getValue()) }),
   helper.accessor("expiry", { header: "Expiry", cell: (c) => day(c.getValue()) }),
   helper.accessor("expiry_weekday", { header: "Day" }),
-  helper.accessor("strike", { header: "Strike", cell: (c) => c.getValue().toLocaleString("en-IN") }),
+  helper.accessor("strike_text", { header: "Strike" }),
   helper.accessor("lot_size", { header: "Lot" }),
   helper.accessor("vix_at_entry", { header: "VIX", cell: (c) => decimal(c.getValue()) }),
   helper.accessor("premium_fill_points", { header: "Premium (pts)", cell: (c) => decimal(c.getValue()) }),
@@ -51,17 +71,20 @@ const columns = helper.columns([
 
 export function TradeTable({
   trades,
+  legs,
   runId,
   studyId,
 }: {
   trades: TradeRecord[];
+  legs?: LegRecord[];
   runId: string;
   studyId?: string;
 }) {
+  const rows = useMemo(() => trades.map((t) => ({ ...t, strike_text: strikeText(t, legs) })), [trades, legs]);
   const table = useTable({
     features,
     columns,
-    data: trades,
+    data: rows,
     globalFilterFn: "includesString",
     getColumnCanGlobalFilter: (column) => SEARCHABLE.has(column.id),
     initialState: { pagination: { pageIndex: 0, pageSize: 25 }, sorting: [{ id: "expiry", desc: false }] },

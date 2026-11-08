@@ -27,7 +27,7 @@ from typing import Any
 import pandas as pd
 
 from nifty_backtest.costs.model import CostConfig
-from nifty_backtest.engine.backtest import run_backtest
+from nifty_backtest.engine.backtest import RunConfig, run_backtest
 from nifty_backtest.engine.runs import git_output, save_run
 from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.marketdata.events import knowable_events_between, load_events
@@ -46,6 +46,10 @@ from nifty_backtest.research.analysis import (
 )
 from nifty_backtest.research.plan import Period, StudyPlan, Variant, load_plan, run_config
 from nifty_backtest.research.stats import holm
+from nifty_backtest.strategies.base import Strategy
+
+# (settings, period, data, costs) -> what to run; M7's run_config by default (M9 passes its own).
+Configure = Callable[[dict[str, Any], Period, DataConfig, CostConfig], tuple[RunConfig, Strategy]]
 
 
 class StudyError(RuntimeError):
@@ -84,15 +88,22 @@ class Runner:
     """Runs variants into one study folder and remembers every run."""
 
     def __init__(
-        self, runs_dir: Path, data: DataConfig, costs: CostConfig, log: Callable[[str], None]
+        self,
+        runs_dir: Path,
+        data: DataConfig,
+        costs: CostConfig,
+        log: Callable[[str], None],
+        configure: Configure = run_config,
     ):
         self.runs_dir, self.data, self.costs, self.log = runs_dir, data, costs, log
+        self.configure = configure
         self.records: list[dict[str, Any]] = []
         self.trades: dict[tuple[str, str], pd.DataFrame] = {}
+        self.legs: dict[tuple[str, str], pd.DataFrame | None] = {}  # multi-leg runs only (M9)
         self._last_id: str | None = None
 
     def run(self, key: str, settings: dict[str, Any], period: Period, variant: Variant) -> None:
-        cfg, strategy = run_config(settings, period, self.data, self.costs)
+        cfg, strategy = self.configure(settings, period, self.data, self.costs)
         result = run_backtest(cfg, strategy)
         _wait_for_new_second(self._last_id)
         folder = save_run(result, cfg, strategy, self.runs_dir)
@@ -100,6 +111,7 @@ class Runner:
         if not result.trades.empty:
             write_metrics(folder)
         self.trades[(key, period.name)] = result.trades
+        self.legs[(key, period.name)] = result.legs
         self.records.append(
             {
                 "key": key,

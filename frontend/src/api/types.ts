@@ -34,3 +34,11 @@ export type RegimeRow = Schemas["RegimeRow"];
 export type EdgePeriod = Schemas["EdgePeriod"];
 export type StudyVerdict = Schemas["StudyVerdict"];
 export type Interval = NonNullable<ComparisonRow["paired_ci_conservative"]>;
+
+// M9 multi-leg runs and the iron condor study.
+export type LegRecord = Schemas["LegRecord"];
+export type LegMark = Schemas["LegMark"];
+export type Q1Row = Schemas["Q1Row"];
+export type Q3Row = Schemas["Q3Row"];
+export type SensitivityRow = Schemas["SensitivityRow"];
+export type TraceSelection = Schemas["TraceSelection"];

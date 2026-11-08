@@ -21,6 +21,10 @@ unchanged: entry filters on previous-close information (VIX, ADX, knowable sched
 events), an alternative strike reference (the previous session's NIFTY close), and early
 exits of individual legs from their daily high/low. Their extra trade and mark columns are
 written only when they are active.
+
+M9: strategies with `multi_leg = True` (the iron condor) go through the signed multi-leg path
+in engine/multileg.py, which also returns per-leg records (legs, leg_marks). The straddle path
+below is unchanged, so B0 still reproduces its reference run byte for byte.
 """
 
 import math
@@ -47,6 +51,7 @@ from nifty_backtest.engine.conditions import (
     entry_filter_reason,
     find_exit,
 )
+from nifty_backtest.engine.multileg import LEG_COLUMNS, LEG_MARK_COLUMNS, trade_multileg
 from nifty_backtest.marketdata.config import DataConfig
 from nifty_backtest.marketdata.events import (
     Event,
@@ -59,7 +64,7 @@ from nifty_backtest.marketdata.indices import index_path
 from nifty_backtest.marketdata.settlement import SettlementError, intrinsic_value, settlement_level
 from nifty_backtest.marketdata.store import connect
 from nifty_backtest.marketdata.trading_calendar import expiry_calendar, trading_days
-from nifty_backtest.strategies.base import Leg, Strategy
+from nifty_backtest.strategies.base import Leg, SkipWeek, Strategy
 
 
 @dataclass(frozen=True)
@@ -82,10 +87,12 @@ class BacktestResult:
     marks: pd.DataFrame  # one row per trade per day held (entry .. expiry)
     equity: pd.DataFrame  # one row per trading day: capital + realised + open mark-to-market
     skipped: pd.DataFrame  # one row per expiry that was not traded, with the reason
+    # Multi-leg strategies only (M9): one row per trade per leg, and per leg per day.
+    legs: pd.DataFrame | None = None
+    leg_marks: pd.DataFrame | None = None
 
 
-class SkipWeek(Exception):
-    """This week cannot be traded honestly; the message is the logged reason."""
+__all__ = ["BacktestResult", "RunConfig", "SkipWeek", "run_backtest"]
 
 
 @dataclass(frozen=True)
@@ -425,6 +432,11 @@ def _trade(
 
 
 def run_backtest(cfg: RunConfig, strategy: Strategy) -> BacktestResult:
+    if strategy.multi_leg and cfg.exit_rule is not None:
+        # Early buy-backs were built and tested for sold legs only (M7); M9 holds to expiry.
+        raise ValueError(f"{strategy.name}: an exit rule is not supported with bought legs")
+    if strategy.multi_leg and cfg.entry_filter is not None:
+        raise ValueError(f"{strategy.name}: an entry filter is not supported with bought legs")
     rates = RateTable(cfg.costs.rates_path)
     index = pd.read_parquet(index_path(cfg.data))
     index["date"] = pd.to_datetime(index["date"]).dt.date
@@ -449,15 +461,24 @@ def run_backtest(cfg: RunConfig, strategy: Strategy) -> BacktestResult:
         )
         calendar = calendar[calendar["entry_date"].isna() | (calendar["entry_date"] >= start)]
         trades, marks, skipped = [], [], []
+        leg_rows: list[dict[str, object]] = []
+        leg_marks: list[dict[str, object]] = []
         for _, cal in calendar.iterrows():
             base = {"expiry": cal["expiry"], "entry_date": cal.get("entry_date")}
             if cal["status"] != "ok":
                 skipped.append({**base, "reason": f"calendar_{cal['status']}"})
                 continue
             try:
-                trade, trade_marks = _trade(
-                    con, cfg, strategy, rates, index, days, events, cal, all_days, adx
-                )
+                if strategy.multi_leg:
+                    trade, trade_marks, legs, lmarks = trade_multileg(
+                        con, cfg, strategy, rates, index, days, events, cal, all_days
+                    )
+                    leg_rows.extend(legs)
+                    leg_marks.extend(lmarks)
+                else:
+                    trade, trade_marks = _trade(
+                        con, cfg, strategy, rates, index, days, events, cal, all_days, adx
+                    )
             except SkipWeek as reason:
                 skipped.append({**base, "reason": str(reason)})
                 continue
@@ -468,7 +489,16 @@ def run_backtest(cfg: RunConfig, strategy: Strategy) -> BacktestResult:
     marks_df = pd.DataFrame(marks)
     equity = _equity_curve(days, trades_df, marks_df, cfg.capital_rs)
     skipped_df = pd.DataFrame(skipped, columns=["expiry", "entry_date", "reason"])
-    return BacktestResult(trades_df, marks_df, equity, skipped_df)
+    if not strategy.multi_leg:
+        return BacktestResult(trades_df, marks_df, equity, skipped_df)
+    return BacktestResult(
+        trades_df,
+        marks_df,
+        equity,
+        skipped_df,
+        legs=pd.DataFrame(leg_rows, columns=LEG_COLUMNS),
+        leg_marks=pd.DataFrame(leg_marks, columns=LEG_MARK_COLUMNS),
+    )
 
 
 def _equity_curve(

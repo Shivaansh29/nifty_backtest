@@ -9,6 +9,8 @@ Each run gets its own folder, runs/<run_id>/, containing:
   marks.csv      daily mark-to-market of every trade
   equity.csv     account value at every close
   skipped.csv    weeks not traded, with the reason
+  legs.csv, leg_marks.csv   multi-leg strategies only (M9): every leg's fills, costs and P&L,
+                 and its daily mark
   metrics.json, yearly.csv, monthly.csv, summary.md   performance metrics (M4, metrics/)
 
 Reproducibility (M4, D6): a run asked for "up to today" (end = None) stores the concrete end date
@@ -141,4 +143,9 @@ def save_run(
     result.marks.to_csv(folder / "marks.csv", index=False)
     result.equity.to_csv(folder / "equity.csv", index=False)
     result.skipped.to_csv(folder / "skipped.csv", index=False)
+    # Multi-leg runs only (M9); a straddle run's folder is exactly as before.
+    if result.legs is not None:
+        result.legs.to_csv(folder / "legs.csv", index=False)
+    if result.leg_marks is not None:
+        result.leg_marks.to_csv(folder / "leg_marks.csv", index=False)
     return folder

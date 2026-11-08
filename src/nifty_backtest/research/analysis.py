@@ -49,23 +49,29 @@ class Pairing:
     extra_variant_trades: int  # variant trades on expiries the baseline did not trade
 
 
-def pair(baseline: pd.DataFrame, variant: pd.DataFrame) -> Pairing:
+def pair(
+    baseline: pd.DataFrame, variant: pd.DataFrame, denominator: pd.DataFrame | None = None
+) -> Pairing:
     """Line up a variant's trades with the baseline's, expiry by expiry. A period with no
-    trades is an empty table (possibly without columns): it simply has no pairs."""
+    trades is an empty table (possibly without columns): it simply has no pairs.
+
+    `denominator` (M9): whose filled premium the differences are measured in. By default the
+    baseline's own (M7). M9 compares C1-R with C1 in B0's premium, because a condor's credit
+    differs from its baseline's; expiries without a denominator premium are left out."""
     if baseline.empty:
         extra = 0 if variant.empty else len(variant)
         return Pairing([], [], [], [], [], 0, extra)
-    base = dict(
-        zip(
-            _expiry_dates(baseline),
-            zip(
-                baseline["pnl_points_net"].tolist(),
-                baseline["premium_fill_points"].tolist(),
-                strict=True,
-            ),
-            strict=True,
-        )
+    premiums = baseline if denominator is None else denominator
+    premium_by_expiry = (
+        dict(zip(_expiry_dates(premiums), premiums["premium_fill_points"].tolist(), strict=True))
+        if not premiums.empty
+        else {}
     )
+    base = {
+        e: (pts, premium_by_expiry[e])
+        for e, pts in zip(_expiry_dates(baseline), baseline["pnl_points_net"].tolist(), strict=True)
+        if e in premium_by_expiry
+    }
     var = (
         dict(zip(_expiry_dates(variant), variant["pnl_points_net"].tolist(), strict=True))
         if not variant.empty

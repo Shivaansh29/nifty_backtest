@@ -151,12 +151,26 @@ def _serve(args: argparse.Namespace, cfg: DataConfig) -> int:
     return 0
 
 
-def _study(args: argparse.Namespace, cfg: DataConfig) -> int:
-    from nifty_backtest.costs.model import CostConfig
-    from nifty_backtest.research.study import StudyError, run_study
+# A schema-2 plan (M9) is run by the M9 runner; every other plan by M7's, unchanged. Each
+# plan's pre-registration defaults to its own committed document.
+PREREGISTRATIONS = {
+    1: Path("docs/research/m7_preregistration.md"),
+    2: Path("docs/research/m9_iron_condor_plan.md"),
+}
 
+
+def _study(args: argparse.Namespace, cfg: DataConfig) -> int:
+    import tomllib
+
+    from nifty_backtest.costs.model import CostConfig
+    from nifty_backtest.research import condor_study, study
+    from nifty_backtest.research.study import StudyError
+
+    schema = tomllib.loads(args.plan.read_text(encoding="utf-8")).get("schema_version", 1)
+    prereg: Path = args.preregistration or PREREGISTRATIONS[2 if schema == 2 else 1]
+    run = condor_study.run_condor_study if schema == 2 else study.run_study
     try:
-        run_study(args.plan, args.preregistration, cfg, CostConfig(), args.studies_dir)
+        run(args.plan, prereg, cfg, CostConfig(), args.studies_dir)
     except StudyError as exc:
         log.error("%s", exc)
         return 1
@@ -232,7 +246,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--runs-dir", type=Path, default=Path("runs"), help="folder of saved runs (default runs)"
     )
     study = commands.add_parser(
-        "study", help="run a pre-registered research study (M7) into studies/<id>/"
+        "study", help="run a pre-registered research study (M7, M9) into studies/<id>/"
     )
     study.add_argument(
         "plan",
@@ -244,8 +258,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     study.add_argument(
         "--preregistration",
         type=Path,
-        default=Path("docs/research/m7_preregistration.md"),
-        help="the committed pre-registration document",
+        default=None,
+        help="the committed pre-registration document (default: the plan's own: "
+        "m7_preregistration.md, or m9_iron_condor_plan.md for a schema-2 plan)",
     )
     study.add_argument(
         "--studies-dir", type=Path, default=Path("studies"), help="output folder (default studies)"

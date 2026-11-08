@@ -650,6 +650,76 @@
         }
       }
     },
+    "/api/runs/{run_id}/legs": {
+      "get": {
+        "tags": [
+          "results"
+        ],
+        "summary": "Run Legs",
+        "description": "Every leg of every trade, exactly as saved in legs.csv (multi-leg runs, M9). Empty\nfor a straddle run, which has no per-leg file.",
+        "operationId": "run_legs_api_runs__run_id__legs_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegRecord"
+                  },
+                  "title": "Response Run Legs Api Runs  Run Id  Legs Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/runs/{run_id}/equity": {
       "get": {
         "tags": [
@@ -1455,6 +1525,88 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TradeDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/studies/{study_id}/runs/{run_id}/legs": {
+      "get": {
+        "tags": [
+          "study runs"
+        ],
+        "summary": "Run Legs",
+        "description": "Every leg of every trade, exactly as saved in legs.csv (multi-leg runs, M9). Empty\nfor a straddle run, which has no per-leg file.",
+        "operationId": "run_legs_api_studies__study_id__runs__run_id__legs_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_]+$",
+              "description": "e.g. 20261022-191259-short_straddle",
+              "title": "Run Id"
+            },
+            "description": "e.g. 20261022-191259-short_straddle"
+          },
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8}-\\d{6}-[a-z0-9_-]+$",
+              "description": "e.g. 20261027-005848-m7-short-straddle-robustness",
+              "title": "Study Id"
+            },
+            "description": "e.g. 20261027-005848-m7-short-straddle-robustness"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegRecord"
+                  },
+                  "title": "Response Run Legs Api Studies  Study Id  Runs  Run Id  Legs Get"
                 }
               }
             }
@@ -2407,6 +2559,61 @@
               }
             ],
             "title": "Paired Worst Baseline"
+          },
+          "mean_r_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean R P"
+          },
+          "mean_r_ml": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean R Ml"
+          },
+          "max_loss_hits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Loss Hits"
+          },
+          "paired_against": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Against"
+          },
+          "paired_denominator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Denominator"
           }
         },
         "additionalProperties": false,
@@ -2491,6 +2698,17 @@
           "run_id": {
             "type": "string",
             "title": "Run Id"
+          },
+          "mean_r_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean R P"
           }
         },
         "additionalProperties": false,
@@ -2523,6 +2741,17 @@
           "rates_path": {
             "type": "string",
             "title": "Rates Path"
+          },
+          "gst_on_ipft": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gst On Ipft"
           }
         },
         "additionalProperties": false,
@@ -3323,6 +3552,197 @@
         ],
         "title": "Health"
       },
+      "LegMark": {
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "title": "Trade Id"
+          },
+          "leg_id": {
+            "type": "string",
+            "title": "Leg Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "close": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Close"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "missing": {
+            "type": "boolean",
+            "title": "Missing"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trade_id",
+          "leg_id",
+          "date",
+          "close",
+          "stale",
+          "missing"
+        ],
+        "title": "LegMark",
+        "description": "One leg on one day (leg_marks.csv, M9): the official close, or on expiry day the\nsettlement value. A missing row has close null and missing true."
+      },
+      "LegRecord": {
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "title": "Trade Id"
+          },
+          "leg_id": {
+            "type": "string",
+            "title": "Leg Id"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "sell",
+              "buy"
+            ],
+            "title": "Side"
+          },
+          "option_type": {
+            "type": "string",
+            "enum": [
+              "CE",
+              "PE"
+            ],
+            "title": "Option Type"
+          },
+          "strike": {
+            "type": "number",
+            "title": "Strike"
+          },
+          "entry_close": {
+            "type": "number",
+            "title": "Entry Close"
+          },
+          "entry_fill": {
+            "type": "number",
+            "title": "Entry Fill"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "lot_size": {
+            "type": "integer",
+            "title": "Lot Size"
+          },
+          "lot_size_source": {
+            "type": "string",
+            "title": "Lot Size Source"
+          },
+          "intrinsic_at_expiry": {
+            "type": "number",
+            "title": "Intrinsic At Expiry"
+          },
+          "expiry_status": {
+            "type": "string",
+            "enum": [
+              "worthless",
+              "assigned",
+              "exercised"
+            ],
+            "title": "Expiry Status"
+          },
+          "pnl_points_gross": {
+            "type": "number",
+            "title": "Pnl Points Gross"
+          },
+          "pnl_rs_gross": {
+            "type": "number",
+            "title": "Pnl Rs Gross"
+          },
+          "slippage_rs": {
+            "type": "number",
+            "title": "Slippage Rs"
+          },
+          "charges_rs": {
+            "type": "number",
+            "title": "Charges Rs"
+          },
+          "brokerage_rs": {
+            "type": "number",
+            "title": "Brokerage Rs"
+          },
+          "stt_rs": {
+            "type": "number",
+            "title": "Stt Rs"
+          },
+          "exchange_rs": {
+            "type": "number",
+            "title": "Exchange Rs"
+          },
+          "ipft_rs": {
+            "type": "number",
+            "title": "Ipft Rs"
+          },
+          "sebi_rs": {
+            "type": "number",
+            "title": "Sebi Rs"
+          },
+          "stamp_rs": {
+            "type": "number",
+            "title": "Stamp Rs"
+          },
+          "gst_rs": {
+            "type": "number",
+            "title": "Gst Rs"
+          },
+          "pnl_rs_net": {
+            "type": "number",
+            "title": "Pnl Rs Net"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trade_id",
+          "leg_id",
+          "side",
+          "option_type",
+          "strike",
+          "entry_close",
+          "entry_fill",
+          "quantity",
+          "lot_size",
+          "lot_size_source",
+          "intrinsic_at_expiry",
+          "expiry_status",
+          "pnl_points_gross",
+          "pnl_rs_gross",
+          "slippage_rs",
+          "charges_rs",
+          "brokerage_rs",
+          "stt_rs",
+          "exchange_rs",
+          "ipft_rs",
+          "sebi_rs",
+          "stamp_rs",
+          "gst_rs",
+          "pnl_rs_net"
+        ],
+        "title": "LegRecord",
+        "description": "One leg of one multi-leg trade (legs.csv, M9). Rupee columns are this leg's own."
+      },
       "ManifestFile": {
         "properties": {
           "run_id": {
@@ -3673,6 +4093,315 @@
           "uncommitted_changes"
         ],
         "title": "PlanGitState"
+      },
+      "Q1Row": {
+        "properties": {
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T"
+          },
+          "p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P"
+          },
+          "ci_iid": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Iid"
+          },
+          "ci_block": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Block"
+          },
+          "ci_conservative": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci Conservative"
+          },
+          "lag1_autocorrelation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lag1 Autocorrelation"
+          },
+          "mean_r_ml": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean R Ml"
+          },
+          "mean_pct_net_credit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Pct Net Credit"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variant",
+          "period",
+          "n",
+          "mean",
+          "t",
+          "p",
+          "ci_iid",
+          "ci_block",
+          "ci_conservative",
+          "lag1_autocorrelation",
+          "mean_r_ml",
+          "mean_pct_net_credit",
+          "verdict"
+        ],
+        "title": "Q1Row",
+        "description": "M9 Q1: a variant's own mean R_P in one period, with both bootstrap intervals and their\nenvelope; `verdict` is the pre-registered edge rule over both periods. R_ML and % of net\ncredit are descriptive."
+      },
+      "Q3Row": {
+        "properties": {
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "net_pnl_rs": {
+            "type": "number",
+            "title": "Net Pnl Rs"
+          },
+          "gross_pnl_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Pnl Rs"
+          },
+          "max_drawdown_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Rs"
+          },
+          "max_drawdown_pct": {
+            "type": "number",
+            "title": "Max Drawdown Pct"
+          },
+          "lot_free_max_drawdown": {
+            "type": "number",
+            "title": "Lot Free Max Drawdown"
+          },
+          "lot_free_drawdown_lower_bound": {
+            "type": "boolean",
+            "title": "Lot Free Drawdown Lower Bound"
+          },
+          "net_over_max_drawdown": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Over Max Drawdown"
+          },
+          "worst_trade_rs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Trade Rs"
+          },
+          "worst_r_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst R P"
+          },
+          "tail5_common": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tail5 Common"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate"
+          },
+          "max_loss_hits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Loss Hits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variant",
+          "period",
+          "trades",
+          "net_pnl_rs",
+          "gross_pnl_rs",
+          "max_drawdown_rs",
+          "max_drawdown_pct",
+          "lot_free_max_drawdown",
+          "lot_free_drawdown_lower_bound",
+          "net_over_max_drawdown",
+          "worst_trade_rs",
+          "worst_r_p",
+          "tail5_common",
+          "win_rate",
+          "max_loss_hits"
+        ],
+        "title": "Q3Row",
+        "description": "M9 Q3: risk trade-off, reported with no verdict."
       },
       "Ratio": {
         "properties": {
@@ -4237,6 +4966,102 @@
         ],
         "title": "RunSummary"
       },
+      "SensitivityRow": {
+        "properties": {
+          "sensitivity": {
+            "type": "string",
+            "enum": [
+              "stamp",
+              "notional",
+              "gst"
+            ],
+            "title": "Sensitivity"
+          },
+          "case": {
+            "type": "string",
+            "title": "Case"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "extra_cost_rs": {
+            "type": "number",
+            "title": "Extra Cost Rs"
+          },
+          "mean_r_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean R P"
+          },
+          "paired_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paired Mean"
+          },
+          "p_holm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Holm"
+          },
+          "status_would_be": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Would Be"
+          },
+          "verdict_changes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sensitivity",
+          "case",
+          "variant",
+          "period",
+          "extra_cost_rs",
+          "mean_r_p"
+        ],
+        "title": "SensitivityRow",
+        "description": "M9: one cost-assumption case (stamp duty on exercise, SEBI notional, GST base) for one\nvariant and period. Descriptive: verdicts are never changed by it."
+      },
       "SkippedWeek": {
         "properties": {
           "expiry": {
@@ -4599,6 +5424,58 @@
             },
             "type": "array",
             "title": "Runs"
+          },
+          "q1": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Q1Row"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q1"
+          },
+          "q3": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Q3Row"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q3"
+          },
+          "sensitivities": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SensitivityRow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensitivities"
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceSelection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -4708,6 +5585,82 @@
             },
             "type": "object",
             "title": "Thresholds"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          },
+          "structures": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structures"
+          },
+          "gst_on_ipft": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gst On Ipft"
+          },
+          "assumptions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assumptions"
           }
         },
         "additionalProperties": false,
@@ -4968,7 +5921,14 @@
             "title": "Adx Max"
           },
           "skip_scheduled_events": {
-            "type": "boolean",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Skip Scheduled Events"
           },
           "stop_multiple": {
@@ -4992,6 +5952,17 @@
               }
             ],
             "title": "Take Profit Decay"
+          },
+          "structure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure"
           }
         },
         "additionalProperties": false,
@@ -5002,13 +5973,7 @@
           "brokerage_per_order_rs",
           "slippage_points_per_leg",
           "capital_rs",
-          "strike_reference",
-          "vix_min",
-          "vix_max",
-          "adx_max",
-          "skip_scheduled_events",
-          "stop_multiple",
-          "take_profit_decay"
+          "strike_reference"
         ],
         "title": "StudyVariantSettings",
         "description": "A variant's full settings: the baseline's plus its one change (study plan)."
@@ -5044,6 +6009,50 @@
         ],
         "title": "StudyVerdict"
       },
+      "TraceSelection": {
+        "properties": {
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "bought_leg_in_the_money": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bought Leg In The Money"
+          },
+          "no_bought_leg_in_the_money": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Bought Leg In The Money"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variant",
+          "period",
+          "bought_leg_in_the_money",
+          "no_bought_leg_in_the_money"
+        ],
+        "title": "TraceSelection",
+        "description": "M9: the two trades picked by code for tracing by hand against raw NSE files."
+      },
       "TradeDetail": {
         "properties": {
           "trade": {
@@ -5055,6 +6064,34 @@
             },
             "type": "array",
             "title": "Marks"
+          },
+          "legs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LegRecord"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legs"
+          },
+          "leg_marks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LegMark"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leg Marks"
           }
         },
         "type": "object",
@@ -5063,7 +6100,7 @@
           "marks"
         ],
         "title": "TradeDetail",
-        "description": "A single trade with its daily marks (drill-down)."
+        "description": "A single trade with its daily marks (drill-down). `legs` and `leg_marks` come from a\nmulti-leg run's legs.csv and leg_marks.csv; for a straddle run they are null."
       },
       "TradeRecord": {
         "properties": {
@@ -5111,7 +6148,14 @@
             "title": "Trading Days Held"
           },
           "strike": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Strike"
           },
           "nifty_close_at_entry": {
@@ -5130,11 +6174,25 @@
             "title": "Vix At Entry"
           },
           "ce_entry_close": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Ce Entry Close"
           },
           "pe_entry_close": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Pe Entry Close"
           },
           "premium_close_points": {
@@ -5170,11 +6228,25 @@
             "title": "Nifty Move Pct"
           },
           "ce_value_at_expiry": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Ce Value At Expiry"
           },
           "pe_value_at_expiry": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Pe Value At Expiry"
           },
           "value_at_expiry_points": {
@@ -5419,6 +6491,106 @@
               }
             ],
             "title": "Strike Reference Level"
+          },
+          "reference_atm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Atm"
+          },
+          "reference_premium_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Premium Points"
+          },
+          "reference_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Date"
+          },
+          "wing_call_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wing Call Points"
+          },
+          "wing_put_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wing Put Points"
+          },
+          "max_loss_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Loss Points"
+          },
+          "pnl_pct_reference_premium_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl Pct Reference Premium Net"
+          },
+          "pnl_pct_max_loss_net": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl Pct Max Loss Net"
+          },
+          "legs_stale_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legs Stale Days"
           }
         },
         "additionalProperties": false,

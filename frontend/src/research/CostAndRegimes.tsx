@@ -18,7 +18,15 @@ function shade(value: number | null | undefined): string {
 
 const unique = (values: number[]) => [...new Set(values)].sort((a, b) => a - b);
 
-export function CostGrid({ study }: { study: StudyFile }) {
+/** `metric`: M7 shows mean net % of each variant's own premium; M9 shows mean R_P (% of the
+ *  ATM reference premium P), its primary unit. */
+export function CostGrid({
+  study,
+  metric = "mean_pct_premium_net",
+}: {
+  study: StudyFile;
+  metric?: "mean_pct_premium_net" | "mean_r_p";
+}) {
   const groups = new Map<string, CostGridRow[]>();
   for (const c of study.cost_grid) {
     const key = `${c.base}|${c.period}`;
@@ -55,10 +63,10 @@ export function CostGrid({ study }: { study: StudyFile }) {
                     {brokerages.map((b) => {
                       const c = at(s, b);
                       return (
-                        <td key={b} className={`px-2 py-1 text-center ${shade(c?.mean_pct_premium_net)}`}>
+                        <td key={b} className={`px-2 py-1 text-center ${shade(c?.[metric])}`}>
                           {c ? (
                             <>
-                              <div className="font-semibold">{percentValue(c.mean_pct_premium_net)}</div>
+                              <div className="font-semibold">{percentValue(c[metric])}</div>
                               <div>{rupeesWhole(c.net_pnl_rs)}</div>
                               <div className="text-slate-600">t {decimal(c.t_pct_premium)}</div>
                             </>
