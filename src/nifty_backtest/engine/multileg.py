@@ -17,7 +17,14 @@ exercised (STT on intrinsic value + SEBI fee on notional).
 Entry eligibility (plan §2.3), in this order: E1-E3 inside the strategy (reference ATM missing
 or zero volume, degenerate strikes); E4 any leg missing; E5 any leg zero volume; E6 a lot size
 unknown or the legs' quantities differ; E7 settlement level missing; E8 credit at the close
-<= 0, or no risk left to measure (widest wing - filled credit <= 0).
+<= 0 (only for strategies that declare `requires_credit`, a credit structure such as the iron
+condor), or no risk left to measure (maximum loss <= 0).
+
+Maximum loss is read off the payoff itself, so it holds for any structure: the largest value of
+(V(S) - filled credit) over settlement levels S, checked at 0 and at every strike (the payoff
+is straight between strikes), and unbounded (blank) if the position is net short calls, whose
+loss grows without limit as S rises. For an iron condor this is max(call wing, put wing) -
+filled credit (plan §2.2); for a debit spread it is the debit paid.
 
 After entry, liquidity never removes a trade (that would use information from after entry):
 a zero-volume leg makes the day a stale mark, a missing row a missing mark whose position
@@ -128,6 +135,19 @@ def wing_widths(legs: list[Leg]) -> dict[str, float | None]:
     return widths
 
 
+def max_loss_points(legs: list[Leg], credit_fill: float) -> float:
+    """Largest loss per unit at expiry, before charges; NaN if the loss has no limit."""
+    net_short_calls = sum(leg.sign for leg in legs if leg.option_type == "CE")
+    if net_short_calls > 0:
+        return math.nan
+    levels = [0.0, *(leg.strike for leg in legs)]
+    worst = max(
+        sum(leg.sign * intrinsic_value(leg.option_type, leg.strike, s) for leg in legs)
+        for s in levels
+    )
+    return worst - credit_fill
+
+
 def _leg_closes(
     con: duckdb.DuckDBPyConnection, legs: list[Leg], entry: date, expiry: date, stated: date
 ) -> dict[tuple[str, date], tuple[float, bool]]:
@@ -233,13 +253,12 @@ def trade_multileg(
         )
     credit_close = sum(f.leg.sign * f.entry_close for f in filled)
     credit_fill = sum(f.leg.sign * f.entry_fill for f in filled)
-    if credit_close <= 0:
+    if strategy.requires_credit and credit_close <= 0:
         raise SkipWeek(f"no_positive_credit: {credit_close:g} points at the close")  # E8
     widths = wing_widths(legs)
-    defined = [w for w in widths.values() if w is not None]
-    max_loss = max(defined) - credit_fill if defined else math.nan
-    if defined and max_loss <= 0:
-        raise SkipWeek(f"no_defined_risk: widest wing {max(defined):g} <= credit")  # E8
+    max_loss = max_loss_points(legs, credit_fill)
+    if not math.isnan(max_loss) and max_loss <= 0:
+        raise SkipWeek(f"no_defined_risk: maximum loss {max_loss:g} points <= 0")  # E8
 
     # --- costs and settlement, leg by leg ---------------------------------------------------
     leg_rows: list[dict[str, object]] = []
@@ -291,7 +310,8 @@ def trade_multileg(
     pnl_points_gross = credit_close - value_at_expiry
     pnl_rs_net = (credit_fill - value_at_expiry) * quantity - charges.total
     pnl_points_net = pnl_rs_net / quantity
-    premium = reference["reference_premium_points"]
+    # A strategy without reference prices (e.g. a debit spread) has no P: R_P stays blank.
+    premium = reference.get("reference_premium_points", math.nan)
 
     # --- daily marks --------------------------------------------------------------------------
     closes = _leg_closes(con, legs, entry, expiry, stated)
@@ -389,14 +409,14 @@ def trade_multileg(
         "missing_marks": sum(bool(m["missing_mark"]) for m in marks),
         "event_in_window": bool(event_list),
         "events": "; ".join(f"{e.type}@{e.day.isoformat()}" for e in event_list),
-        "reference_atm": reference["reference_atm"],
+        "reference_atm": reference.get("reference_atm", math.nan),
         "reference_premium_points": premium,
-        "reference_date": ref_day,
+        "reference_date": ref_day if reference else None,
         "wing_call_points": widths["CE"] if widths["CE"] is not None else math.nan,
         "wing_put_points": widths["PE"] if widths["PE"] is not None else math.nan,
         "max_loss_points": max_loss,
         "pnl_pct_reference_premium_net": 100 * pnl_points_net / premium,  # R_P, primary
-        "pnl_pct_max_loss_net": 100 * pnl_points_net / max_loss if defined else math.nan,  # R_ML
+        "pnl_pct_max_loss_net": 100 * pnl_points_net / max_loss,  # R_ML; NaN if unbounded
         "legs_stale_days": legs_stale_days,
     }
     trade.update(extra)

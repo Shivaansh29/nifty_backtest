@@ -47,6 +47,9 @@ class Strategy(ABC):
     multi_leg: ClassVar[bool] = False
     # M9: legs() prices strikes from reference premiums; see reference().
     uses_reference_prices: ClassVar[bool] = False
+    # M9: skip a week whose net credit at the close is not positive (rule E8). A credit
+    # structure (the iron condor) needs it; a debit spread must not have it.
+    requires_credit: ClassVar[bool] = False
 
     @abstractmethod
     def legs(self, chain: pd.DataFrame, spot: float) -> list[Leg]:

@@ -45,6 +45,7 @@ class IronCondor(Strategy):
     name: str = "iron_condor"
     multi_leg: ClassVar[bool] = True
     uses_reference_prices: ClassVar[bool] = True
+    requires_credit: ClassVar[bool] = True  # E8: no positive credit -> skip
 
     def reference(self, chain: pd.DataFrame, spot: float) -> dict[str, float]:
         atm = atm_strike(sorted(set(chain["strike"].tolist())), spot)
