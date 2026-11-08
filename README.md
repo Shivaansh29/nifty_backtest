@@ -6,12 +6,13 @@ Backtests NIFTY 50 index option strategies on real NSE end-of-day data and shows
 an interactive web dashboard. Version 1 tests one strategy, a weekly short straddle, from
 October 2021 to the latest trading day.
 
-> **Status: M8 (Docker packaging) complete.** The short straddle runs over five years of NSE
+> **Status: M9 (iron condor study) complete, awaiting review.** The short straddle runs over five years of NSE
 > data (263 weekly trades) with a dated, sourced cost model, and every spec metric is computed
 > against a NIFTY 50 TRI buy-and-hold benchmark. All numbers below come from one saved,
 > reproducible run. A FastAPI backend serves saved runs and launches new ones, a React
-> dashboard shows them, a pre-registered study (M7) tests six conditions, and
-> `docker compose up` starts the API and dashboard on your own computer.
+> dashboard shows them, a pre-registered study (M7) tests six conditions, a second one (M9)
+> tests three iron condors against the straddle, and `docker compose up` starts the API and
+> dashboard on your own computer.
 
 ## Principles
 
@@ -196,6 +197,7 @@ calls the API and does no financial calculation.
 | M6 | React dashboard | done |
 | M7 | Conditions and robustness: pre-registered study, one change at a time | done (forward holdout pending) |
 | M8 | Docker Compose packaging, Docker CI, architecture diagram, screenshots | done |
+| M9 | Iron condor study: multi-leg engine path, three pre-registered variants against B0 | done (forward holdout pending) |
 
 ## Results (v1 baseline: short straddle, hold to expiry)
 
@@ -248,6 +250,25 @@ any variant ran on real data.
 Results, checks and limitations: [`docs/milestones/M7.md`](docs/milestones/M7.md). The dashboard
 shows the full study at `#/studies`.
 
+## Research: does an iron condor do better? (M9)
+
+A second pre-registered study ([`docs/research/m9_iron_condor_plan.md`](docs/research/m9_iron_condor_plan.md),
+frozen before any condor ran) tested a weekly iron condor in three versions: short strikes at
+ATM ± 1.00, 0.75 or 1.25 × P, where P is the ATM straddle premium, with wings 1 × P beyond.
+
+- **All three are inconclusive against the straddle.** Paired with B0 expiry by expiry, every
+  mean difference is negative (−4% to −7% of B0's premium per expiry), but no Holm-adjusted p is
+  below 0.05 (0.26-0.27).
+- **No edge is demonstrated** for any condor on its own (mean net result −1.5% to −2.5% of P per
+  trade in development, +0.3% to +0.7% in validation, all intervals including zero).
+- **Descriptive only:** the condors roughly halve drawdowns and worst trades but give up most of
+  the profit; net profit per rupee of drawdown is lower than the straddle's in both periods.
+- **Cost assumptions** that could not be verified (stamp duty on cash exercise, IPFT in GST's
+  base, SEBI's notional value) are stated and tested; none changes a verdict.
+- **No variant is chosen.** Nothing is confirmed until the one forward evaluation.
+
+Results, provenance, checks and limitations: [`docs/milestones/M9.md`](docs/milestones/M9.md).
+
 ## How results are measured
 
 - **P&L in three units.** NIFTY's lot size changed several times in this period
@@ -294,7 +315,8 @@ documentation, generated from the code, is at http://127.0.0.1:8000/docs.
 | `GET /api/runs/{run_id}/metrics` | `metrics.json` as saved |
 | `GET /api/runs/{run_id}/yearly`, `/monthly` | the calendar-year and monthly tables |
 | `GET /api/runs/{run_id}/trades` | the trade log |
-| `GET /api/runs/{run_id}/trades/{trade_id}` | one trade with its daily marks |
+| `GET /api/runs/{run_id}/trades/{trade_id}` | one trade with its daily marks (and, for a multi-leg trade, every leg and leg mark) |
+| `GET /api/runs/{run_id}/legs` | every leg of a multi-leg run (M9); empty for a straddle run |
 | `GET /api/runs/{run_id}/equity` | the daily equity curve |
 | `GET /api/runs/{run_id}/skipped` | weeks not traded, with the reason |
 | `GET /api/runs/{run_id}/daily` | daily net and gross equity, drawdowns and the NIFTY 50 TRI curve, for charts (M6) |
